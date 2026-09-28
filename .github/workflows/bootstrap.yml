@@ -19,6 +19,7 @@ jobs:
         run: |
           printf '%s' "$ARCHIVE" | base64 --decode > /tmp/slate.tar.gz
           tar -xzf /tmp/slate.tar.gz
+          rm .github/workflows/android-ci.yml
           rm .github/workflows/bootstrap.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
