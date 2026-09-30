@@ -15,10 +15,10 @@ Slate uses a single-activity Compose UI with unidirectional data flow. A reposit
 
 ## Storage model
 
-- Document metadata belongs in Room after the prototype phase.
+- Document metadata and current document bodies are stored in Room.
 - Document content uses a versioned Slate document model rather than storing Android UI spans.
 - Attachments use app-private files addressed by stable identifiers.
-- Every committed edit produces a recoverable journal checkpoint before compaction.
+- Every committed edit produces an immediate recoverable journal checkpoint; the current document snapshot is debounced and the journal is compacted to the newest 30 entries per document.
 - The Storage Access Framework handles user-selected imports and exports; broad storage permission is not required.
 
 ## Format independence

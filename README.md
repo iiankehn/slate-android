@@ -8,7 +8,11 @@ The `0.1.0-dev` groundwork includes:
 
 - a native Kotlin and Jetpack Compose application shell;
 - compact phone navigation and an adaptive two-pane tablet/laptop layout;
-- an editable in-memory document prototype;
+- a Room-backed document library with a versioned rich-text model;
+- selection-aware bold, italic, underline, and heading formatting;
+- bulleted lists, checklists, and editor undo/redo;
+- working rename, duplicate, pin, archive, and delete document actions;
+- immediate recovery checkpoints and debounced automatic saving;
 - the Midnight and CORE Glass visual direction using CORE blue `#0072BC`;
 - no network, advertising, location, contacts, or analytics permissions;
 - Android 12 (API 31) as the minimum supported release;
@@ -16,6 +20,8 @@ The `0.1.0-dev` groundwork includes:
 - initial unit tests and lint/build gates.
 
 The current launcher mark is deliberately a placeholder. Final Slate identity work should be completed before a public beta.
+
+Documents now survive app restarts. Each edit is written to a bounded recovery journal immediately, while the main document snapshot is saved after a short idle delay. On launch, Slate restores a journal entry when it is newer than the main document record.
 
 ## Build
 

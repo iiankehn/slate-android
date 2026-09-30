@@ -4,7 +4,9 @@
 
 - Brand direction and adaptive Compose shell.
 - Versioned document model.
-- Durable Room-backed library and autosave journal.
+- Initial rich-text ranges and working editor commands.
+- Document actions for rename, duplicate, pin, archive, and delete.
+- Durable Room-backed library and autosave journal. **Implemented in the 0.1 development foundation.**
 - Plain-text and Markdown import/export.
 - CI, lint, unit tests, and debug APK.
 

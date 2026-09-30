@@ -1,0 +1,23 @@
+package com.iiankehn.slate.data
+
+import com.iiankehn.slate.model.RichTextRange
+import com.iiankehn.slate.model.RichTextStyle
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class RangePayloadTest {
+    @Test
+    fun rangePayloadRoundTrips() {
+        val ranges = listOf(
+            RichTextRange(RichTextStyle.Bold, 0, 5),
+            RichTextRange(RichTextStyle.HeadingOne, 8, 15),
+        )
+
+        assertEquals(ranges, RangePayload.decode(RangePayload.encode(ranges)))
+    }
+
+    @Test
+    fun malformedRangesAreIgnored() {
+        assertEquals(emptyList<RichTextRange>(), RangePayload.decode("not,a,range;Bold,x,4"))
+    }
+}
