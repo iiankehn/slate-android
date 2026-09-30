@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -323,7 +322,7 @@ private fun Editor(
     val undoStack = remember(document.id) { mutableStateListOf<EditorSnapshot>() }
     val redoStack = remember(document.id) { mutableStateListOf<EditorSnapshot>() }
     val titleFocusRequester = remember(document.id) { FocusRequester() }
-    var renameRequest by remember(document.id) { mutableIntStateOf(0) }
+    var renameRequest by remember(document.id) { mutableStateOf(0) }
     var menuExpanded by remember(document.id) { mutableStateOf(false) }
     var confirmDelete by remember(document.id) { mutableStateOf(false) }
     var bodyValue by remember(document.id) {
