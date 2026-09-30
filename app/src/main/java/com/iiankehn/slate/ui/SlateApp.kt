@@ -8,15 +8,16 @@ import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -24,27 +25,29 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -63,7 +66,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
@@ -84,6 +86,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iiankehn.slate.SlateViewModel
@@ -96,6 +99,8 @@ import com.iiankehn.slate.model.RichTextRange
 import com.iiankehn.slate.model.RichTextStyle
 import com.iiankehn.slate.ui.theme.CoreBlue
 import com.iiankehn.slate.ui.theme.Midnight
+import com.iiankehn.slate.ui.theme.SlateBorder
+import com.iiankehn.slate.ui.theme.SlateSurfaceSoft
 import com.iiankehn.slate.ui.theme.SlateSurfaceRaised
 import com.iiankehn.slate.ui.theme.SlateTextMuted
 import kotlinx.coroutines.Dispatchers
@@ -202,12 +207,7 @@ fun SlateApp(viewModel: SlateViewModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(CoreBlue.copy(alpha = 0.20f), Midnight),
-                    radius = 1100f,
-                ),
-            ),
+            .background(MaterialTheme.colorScheme.background),
     ) {
         BoxWithConstraints(
             modifier = Modifier
@@ -334,57 +334,56 @@ private fun DocumentLibrary(
     }
 
     Surface(
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
+        color = MaterialTheme.colorScheme.surface,
         modifier = modifier,
     ) {
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        Column(Modifier.fillMaxSize()) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 18.dp),
+                modifier = Modifier.fillMaxWidth().padding(start = 22.dp, end = 18.dp, top = 20.dp, bottom = 16.dp),
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("SLATE", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CoreBlue, letterSpacing = 2.sp)
-                    Text("Documents", fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                    Text("SLATE R1", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.8.sp)
+                    Text("Documents", style = MaterialTheme.typography.headlineMedium)
                 }
                 Button(
                     onClick = onNewDocument,
-                    shape = CircleShape,
-                    contentPadding = ButtonDefaults.ContentPadding,
-                ) { Text("New") }
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 11.dp),
+                ) { Text("＋  New") }
             }
 
-            BasicTextField(
+            OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
                 singleLine = true,
-                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp),
-                cursorBrush = SolidColor(CoreBlue),
-                decorationBox = { field ->
-                    Surface(color = SlateSurfaceRaised, shape = RoundedCornerShape(14.dp)) {
-                        Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp)) {
-                            if (query.isBlank()) Text("Search title, text, folders, tags…", color = SlateTextMuted, fontSize = 14.sp)
-                            field()
-                        }
-                    }
-                },
+                placeholder = { Text("Search documents") },
+                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
             )
 
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 18.dp, vertical = 12.dp),
             ) {
                 LibraryFilter.entries.forEach { option ->
-                    FormattingButton(option.name, active = filter == option) { filter = option }
+                    FilterChip(
+                        selected = filter == option,
+                        onClick = { filter = option },
+                        label = { Text(option.name) },
+                    )
                 }
-                FormattingButton("Import", onClick = onImport)
+                AssistChip(onClick = onImport, label = { Text("Import") })
             }
 
             Text(
-                "On this device",
+                "${visibleDocuments.size} on this device",
                 color = SlateTextMuted,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp),
             )
 
             if (visibleDocuments.isEmpty()) {
@@ -393,8 +392,9 @@ private fun DocumentLibrary(
                 }
             } else {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 24.dp),
+                    modifier = Modifier.fillMaxSize(),
                 ) {
                     items(visibleDocuments, key = { it.id }) { document ->
                         DocumentRow(document, selectedId == document.id) { onDocumentSelected(document) }
@@ -411,34 +411,53 @@ private fun DocumentRow(
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
-    Column(
+    Surface(
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else SlateSurfaceSoft,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else SlateBorder),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(if (isSelected) CoreBlue.copy(alpha = 0.23f) else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 13.dp),
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (document.isPinned && !document.isArchived) {
-                Box(Modifier.size(7.dp).background(CoreBlue, CircleShape))
-                Spacer(Modifier.width(8.dp))
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (document.isPinned && !document.isArchived) {
+                    Box(Modifier.size(7.dp).background(CoreBlue, CircleShape))
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(
+                    DocumentTitlePolicy.displayTitle(document.title, document.body.text),
+                    color = if (document.isArchived) SlateTextMuted else MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (document.isFavorite) Text("★", color = MaterialTheme.colorScheme.primary)
             }
-            if (document.isFavorite) Text("★ ", color = CoreBlue)
+            if (document.body.text.isNotBlank()) {
+                Text(
+                    document.body.text.replace('\n', ' ').trim(),
+                    color = SlateTextMuted,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 5.dp),
+                )
+            }
             Text(
-                DocumentTitlePolicy.displayTitle(document.title, document.body.text),
-                color = if (document.isArchived) SlateTextMuted else MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-            )
-        }
-        Text(document.updatedLabel, color = SlateTextMuted, fontSize = 12.sp)
-        if (document.folder.isNotBlank() || document.tags.isNotEmpty()) {
-            Text(
-                listOfNotNull(document.folder.takeIf(String::isNotBlank), document.tags.takeIf { it.isNotEmpty() }?.joinToString(" · ") { "#$it" }).joinToString("  "),
+                buildList {
+                    add(document.updatedLabel)
+                    if (document.folder.isNotBlank()) add(document.folder)
+                    if (document.tags.isNotEmpty()) add(document.tags.joinToString(" · ") { "#$it" })
+                }.joinToString("  •  "),
                 color = SlateTextMuted,
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 8.dp),
             )
         }
     }
@@ -449,7 +468,6 @@ private data class EditorSnapshot(
     val body: RichTextDocument,
 )
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Editor(
     document: Document,
@@ -556,25 +574,40 @@ private fun Editor(
         }
     }
 
-    Column(modifier.background(Color.Transparent).navigationBarsPadding()) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.Transparent)
+            .imePadding(),
+    ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             if (onBack != null) {
                 IconButton(onClick = onBack) {
                     Icon(backIcon, contentDescription = "Back")
                 }
             }
-            Text(
-                if (saving) "Saving…" else "Saved on device",
-                color = SlateTextMuted,
-                fontSize = 12.sp,
-                modifier = Modifier.weight(1f),
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f).padding(start = if (onBack == null) 8.dp else 0.dp),
+            ) {
+                Box(
+                    Modifier
+                        .size(7.dp)
+                        .background(if (saving) MaterialTheme.colorScheme.primary else Color(0xFF63D39B), CircleShape),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    if (saving) "Saving…" else "Saved locally",
+                    color = SlateTextMuted,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
-                    Text("•••", color = SlateTextMuted, fontWeight = FontWeight.Bold)
+                    Text("⋮", color = MaterialTheme.colorScheme.onSurface, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                 }
                 DropdownMenu(
                     expanded = menuExpanded,
@@ -637,78 +670,30 @@ private fun Editor(
         }
 
         Surface(
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+            color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            modifier = Modifier.fillMaxSize(),
+            border = BorderStroke(1.dp, SlateBorder),
+            modifier = Modifier.weight(1f).fillMaxWidth(),
         ) {
-            Column(Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 20.dp)) {
+            Column(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 10.dp)) {
                 BasicTextField(
                     value = document.title,
                     onValueChange = { commit(document.copy(title = it)) },
-                    textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 32.sp, fontWeight = FontWeight.Bold),
+                    textStyle = MaterialTheme.typography.headlineMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(CoreBlue),
                     decorationBox = { field ->
                         Box {
-                            if (document.title.isBlank()) Text("Untitled", color = SlateTextMuted, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                            if (document.title.isBlank()) Text("Untitled", color = SlateTextMuted, style = MaterialTheme.typography.headlineMedium)
                             field()
                         }
                     },
                     modifier = Modifier.fillMaxWidth().focusRequester(titleFocusRequester),
                 )
 
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(vertical = 18.dp),
-                ) {
-                    FormattingButton(
-                        label = "B",
-                        active = document.body.hasStyle(RichTextStyle.Bold, bodyValue.selection.start, bodyValue.selection.end),
-                        onClick = { applyStyle(RichTextStyle.Bold) },
-                    )
-                    FormattingButton(
-                        label = "I",
-                        active = document.body.hasStyle(RichTextStyle.Italic, bodyValue.selection.start, bodyValue.selection.end),
-                        onClick = { applyStyle(RichTextStyle.Italic) },
-                    )
-                    FormattingButton(
-                        label = "U",
-                        active = document.body.hasStyle(RichTextStyle.Underline, bodyValue.selection.start, bodyValue.selection.end),
-                        onClick = { applyStyle(RichTextStyle.Underline) },
-                    )
-                    FormattingButton(
-                        label = "H1",
-                        active = document.body.hasStyle(RichTextStyle.HeadingOne, bodyValue.selection.start, bodyValue.selection.end),
-                        onClick = { applyStyle(RichTextStyle.HeadingOne, blockStyle = true) },
-                    )
-                    FormattingButton(label = "List", onClick = { applyPrefix("• ") })
-                    FormattingButton(label = "Check", onClick = { applyPrefix("☐ ") })
-                    FormattingButton(label = "Quote", onClick = { applyStyle(RichTextStyle.Quote, blockStyle = true) })
-                    FormattingButton(label = "Link", onClick = { showLink = true })
-                    FormattingButton(label = "Image", onClick = { imageLauncher.launch(arrayOf("image/*")) })
-                    FormattingButton(label = "Table", onClick = { insertText("| Column 1 | Column 2 |\n| --- | --- |\n| Value | Value |", RichTextStyle.Table) })
-                    FormattingButton(label = "Find", onClick = { showFind = true })
-                    FormattingButton(
-                        label = "↶",
-                        enabled = undoStack.isNotEmpty(),
-                        onClick = {
-                            val previous = undoStack.removeAt(undoStack.lastIndex)
-                            redoStack += EditorSnapshot(document.title, document.body)
-                            onDocumentChange(document.copy(title = previous.title, body = previous.body, updatedLabel = "Just now"))
-                        },
-                    )
-                    FormattingButton(
-                        label = "↷",
-                        enabled = redoStack.isNotEmpty(),
-                        onClick = {
-                            val next = redoStack.removeAt(redoStack.lastIndex)
-                            undoStack += EditorSnapshot(document.title, document.body)
-                            onDocumentChange(document.copy(title = next.title, body = next.body, updatedLabel = "Just now"))
-                        },
-                    )
-                }
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                HorizontalDivider(
+                    color = SlateBorder,
+                    modifier = Modifier.padding(top = 14.dp),
+                )
 
                 BasicTextField(
                     value = bodyValue,
@@ -717,10 +702,10 @@ private fun Editor(
                         bodyValue = TextFieldValue(annotatedBody(body), changed.selection)
                         commit(document.copy(body = body))
                     },
-                    textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 18.sp, lineHeight = 29.sp),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(CoreBlue),
                     decorationBox = { field ->
-                        Box(Modifier.padding(top = 18.dp)) {
+                        Box(Modifier.padding(top = 16.dp, bottom = 8.dp)) {
                             if (document.body.text.isBlank()) Text("Start writing…", color = SlateTextMuted, fontSize = 18.sp)
                             field()
                         }
@@ -752,8 +737,45 @@ private fun Editor(
                         }
                     },
                 )
-                document.body.ranges.filter { it.style == RichTextStyle.Image && it.data != null }.take(3).forEach { range ->
+                document.body.ranges.filter { it.style == RichTextStyle.Image && it.data != null }.take(1).forEach { range ->
                     ImagePreview(range.data!!)
+                }
+
+                Surface(
+                    color = SlateSurfaceSoft,
+                    shape = RoundedCornerShape(18.dp),
+                    border = BorderStroke(1.dp, SlateBorder),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                    ) {
+                        FormattingButton("B", active = document.body.hasStyle(RichTextStyle.Bold, bodyValue.selection.start, bodyValue.selection.end)) { applyStyle(RichTextStyle.Bold) }
+                        FormattingButton("I", active = document.body.hasStyle(RichTextStyle.Italic, bodyValue.selection.start, bodyValue.selection.end)) { applyStyle(RichTextStyle.Italic) }
+                        FormattingButton("U", active = document.body.hasStyle(RichTextStyle.Underline, bodyValue.selection.start, bodyValue.selection.end)) { applyStyle(RichTextStyle.Underline) }
+                        FormattingButton("H1", active = document.body.hasStyle(RichTextStyle.HeadingOne, bodyValue.selection.start, bodyValue.selection.end)) { applyStyle(RichTextStyle.HeadingOne, blockStyle = true) }
+                        FormattingButton("List") { applyPrefix("• ") }
+                        FormattingButton("Check") { applyPrefix("☐ ") }
+                        FormattingButton("Quote") { applyStyle(RichTextStyle.Quote, blockStyle = true) }
+                        FormattingButton("Link") { showLink = true }
+                        FormattingButton("Image") { imageLauncher.launch(arrayOf("image/*")) }
+                        FormattingButton("Table") { insertText("| Column 1 | Column 2 |\n| --- | --- |\n| Value | Value |", RichTextStyle.Table) }
+                        FormattingButton("Find") { showFind = true }
+                        FormattingButton("↶", enabled = undoStack.isNotEmpty()) {
+                            val previous = undoStack.removeAt(undoStack.lastIndex)
+                            redoStack += EditorSnapshot(document.title, document.body)
+                            onDocumentChange(document.copy(title = previous.title, body = previous.body, updatedLabel = "Just now"))
+                        }
+                        FormattingButton("↷", enabled = redoStack.isNotEmpty()) {
+                            val next = redoStack.removeAt(redoStack.lastIndex)
+                            undoStack += EditorSnapshot(document.title, document.body)
+                            onDocumentChange(document.copy(title = next.title, body = next.body, updatedLabel = "Just now"))
+                        }
+                    }
                 }
             }
         }
@@ -857,15 +879,19 @@ private fun ImagePreview(uri: String) {
         Image(
             bitmap = bitmap!!.asImageBitmap(),
             contentDescription = "Document image",
-            modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp).clip(RoundedCornerShape(14.dp)),
+            modifier = Modifier.fillMaxWidth().heightIn(max = 112.dp).clip(RoundedCornerShape(14.dp)),
         )
     }
 }
 
 @Composable
 private fun FieldShell(placeholder: String, value: String, field: @Composable () -> Unit) {
-    Surface(color = SlateSurfaceRaised, shape = RoundedCornerShape(12.dp)) {
-        Box(Modifier.fillMaxWidth().padding(12.dp)) {
+    Surface(
+        color = SlateSurfaceSoft,
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, SlateBorder),
+    ) {
+        Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp)) {
             if (value.isBlank()) Text(placeholder, color = SlateTextMuted)
             field()
         }
@@ -880,18 +906,22 @@ private fun FormattingButton(
     onClick: () -> Unit,
 ) {
     Surface(
-        color = if (active) CoreBlue.copy(alpha = 0.45f) else SlateSurfaceRaised,
+        color = if (active) MaterialTheme.colorScheme.primaryContainer else SlateSurfaceRaised,
         contentColor = if (enabled) MaterialTheme.colorScheme.onSurface else SlateTextMuted.copy(alpha = 0.45f),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(
+            1.dp,
+            if (active) MaterialTheme.colorScheme.primary else SlateBorder,
+        ),
         modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, onClick = onClick),
     ) {
         Text(
             label,
             fontWeight = FontWeight.SemiBold,
             fontSize = 13.sp,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
         )
     }
 }
