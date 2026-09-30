@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -287,6 +288,9 @@ fun SlateApp(viewModel: SlateViewModel) {
                 .windowInsetsPadding(WindowInsets.safeDrawing),
         ) {
             val expanded = maxWidth >= 840.dp
+            BackHandler(enabled = !expanded && destination == CompactDestination.Editor) {
+                destination = CompactDestination.Library
+            }
             if (expanded) {
                 Row(Modifier.fillMaxSize()) {
                     DocumentLibrary(
