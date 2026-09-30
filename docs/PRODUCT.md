@@ -6,6 +6,8 @@ Slate by CORE is one writing space for quick notes, longer drafts, and complete 
 
 ## First public version
 
+The R1 implementation now covers this baseline. R2 remains a separate full word-processing product rather than an incremental R1 version.
+
 - Create, edit, duplicate, rename, pin, archive, and delete documents.
 - Headings, paragraphs, bold, italic, underline, links, lists, checklists, and quotes.
 - Folders, tags, favorites, and full-text search.

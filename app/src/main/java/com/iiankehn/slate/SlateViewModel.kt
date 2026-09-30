@@ -7,6 +7,7 @@ import com.iiankehn.slate.data.DocumentRepository
 import com.iiankehn.slate.model.Document
 import com.iiankehn.slate.model.DocumentTitlePolicy
 import com.iiankehn.slate.model.RichTextDocument
+import com.iiankehn.slate.io.ImportedDocument
 import java.util.UUID
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -20,6 +21,7 @@ data class SlateUiState(
     val documents: List<Document> = emptyList(),
     val loading: Boolean = true,
     val savingDocumentIds: Set<String> = emptySet(),
+    val history: Map<String, List<Document>> = emptyMap(),
 )
 
 class SlateViewModel(
@@ -45,6 +47,7 @@ class SlateViewModel(
                     documents = merged.sortedForLibrary(),
                     loading = false,
                     savingDocumentIds = mutableUiState.value.savingDocumentIds,
+                    history = mutableUiState.value.history,
                 )
             }
         }
@@ -56,6 +59,18 @@ class SlateViewModel(
             title = "",
             body = RichTextDocument(),
             updatedLabel = "Just now",
+        )
+        updateLocal(document)
+        scheduleSave(document, delayMillis = 0)
+        return document
+    }
+
+    fun importDocument(imported: ImportedDocument): Document {
+        val document = Document(
+            id = UUID.randomUUID().toString(),
+            title = imported.title,
+            body = imported.body,
+            updatedLabel = "Imported now",
         )
         updateLocal(document)
         scheduleSave(document, delayMillis = 0)
@@ -79,6 +94,7 @@ class SlateViewModel(
             updatedLabel = "Just now",
             isPinned = false,
             isArchived = false,
+            isDeleted = false,
             updatedAtEpochMillis = nextTimestamp(source),
         )
         updateLocal(duplicate)
@@ -108,6 +124,44 @@ class SlateViewModel(
         return changed
     }
 
+    fun toggleFavorite(source: Document): Document = saveImmediately(
+        source.copy(isFavorite = !source.isFavorite),
+    )
+
+    fun updateOrganization(source: Document, folder: String, tags: Set<String>): Document = saveImmediately(
+        source.copy(folder = folder.trim(), tags = tags.map(String::trim).filter(String::isNotEmpty).toSet()),
+    )
+
+    fun moveToTrash(source: Document): Document = saveImmediately(
+        source.copy(isDeleted = true, isArchived = false, isPinned = false),
+    )
+
+    fun restoreFromTrash(source: Document): Document = saveImmediately(source.copy(isDeleted = false))
+
+    fun loadHistory(documentId: String) {
+        viewModelScope.launch {
+            val versions = repository.history(documentId)
+            mutableUiState.update { it.copy(history = it.history + (documentId to versions)) }
+        }
+    }
+
+    fun restoreVersion(current: Document, version: Document) {
+        updateDocument(
+            current.copy(
+                title = version.title,
+                body = version.body,
+                folder = version.folder,
+                tags = version.tags,
+            ),
+        )
+    }
+
+    fun permanentlyDelete(source: Document) {
+        pendingSaves.remove(source.id)?.cancel()
+        mutableUiState.update { state -> state.copy(documents = state.documents.filterNot { it.id == source.id }) }
+        viewModelScope.launch { repository.permanentlyDelete(source) }
+    }
+
     fun deleteDocument(source: Document) {
         pendingSaves.remove(source.id)?.cancel()
         saveGenerations.remove(source.id)
@@ -118,6 +172,13 @@ class SlateViewModel(
             )
         }
         viewModelScope.launch { repository.delete(source) }
+    }
+
+    private fun saveImmediately(source: Document): Document {
+        val changed = source.copy(updatedLabel = "Just now", updatedAtEpochMillis = nextTimestamp(source))
+        updateLocal(changed)
+        scheduleSave(changed, delayMillis = 0)
+        return changed
     }
 
     private fun updateLocal(document: Document) {
@@ -197,8 +258,10 @@ class SlateViewModel(
 }
 
 private fun List<Document>.sortedForLibrary(): List<Document> = sortedWith(
-    compareBy<Document> { it.isArchived }
+    compareBy<Document> { it.isDeleted }
+        .thenBy { it.isArchived }
         .thenByDescending { it.isPinned }
+        .thenByDescending { it.isFavorite }
         .thenByDescending(Document::updatedAtEpochMillis),
 )
 

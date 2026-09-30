@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 abstract class SlateDao {
     @Transaction
-    @Query("SELECT * FROM documents ORDER BY isArchived ASC, isPinned DESC, updatedAtEpochMillis DESC")
+    @Query("SELECT * FROM documents ORDER BY isDeleted ASC, isArchived ASC, isPinned DESC, isFavorite DESC, updatedAtEpochMillis DESC")
     abstract fun observeDocuments(): Flow<List<DocumentWithRanges>>
 
     @Transaction
@@ -47,6 +47,9 @@ abstract class SlateDao {
 
     @Query("SELECT * FROM recovery_entries ORDER BY createdAtEpochMillis DESC, recoveryId DESC")
     abstract suspend fun getRecoveryEntries(): List<RecoveryEntryEntity>
+
+    @Query("SELECT * FROM recovery_entries WHERE documentId = :documentId AND isDeletion = 0 ORDER BY createdAtEpochMillis DESC, recoveryId DESC")
+    abstract suspend fun getRecoveryEntries(documentId: String): List<RecoveryEntryEntity>
 
     @Query(
         """

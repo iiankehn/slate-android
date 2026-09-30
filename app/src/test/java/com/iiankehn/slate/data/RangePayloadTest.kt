@@ -20,4 +20,10 @@ class RangePayloadTest {
     fun malformedRangesAreIgnored() {
         assertEquals(emptyList<RichTextRange>(), RangePayload.decode("not,a,range;Bold,x,4"))
     }
+
+    @Test
+    fun rangeMetadataRoundTrips() {
+        val ranges = listOf(RichTextRange(RichTextStyle.Link, 0, 5, "https://example.com/a,b?q=1"))
+        assertEquals(ranges, RangePayload.decode(RangePayload.encode(ranges)))
+    }
 }

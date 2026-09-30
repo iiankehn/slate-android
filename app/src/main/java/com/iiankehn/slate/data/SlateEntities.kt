@@ -15,6 +15,10 @@ data class DocumentEntity(
     val updatedLabel: String,
     val isPinned: Boolean,
     val isArchived: Boolean,
+    val isFavorite: Boolean,
+    val isDeleted: Boolean,
+    val folder: String,
+    val tagsPayload: String,
     val updatedAtEpochMillis: Long,
 )
 
@@ -36,6 +40,7 @@ data class RichTextRangeEntity(
     val style: String,
     val start: Int,
     val end: Int,
+    val data: String?,
 )
 
 data class DocumentWithRanges(
@@ -60,6 +65,10 @@ data class RecoveryEntryEntity(
     val updatedLabel: String,
     val isPinned: Boolean,
     val isArchived: Boolean,
+    val isFavorite: Boolean,
+    val isDeleted: Boolean,
+    val folder: String,
+    val tagsPayload: String,
     val isDeletion: Boolean,
     val createdAtEpochMillis: Long,
 )

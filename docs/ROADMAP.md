@@ -7,27 +7,27 @@
 - Initial rich-text ranges and working editor commands.
 - Document actions for rename, duplicate, pin, archive, and delete.
 - Durable Room-backed library and autosave journal. **Implemented in the 0.1 development foundation.**
-- Plain-text and Markdown import/export.
+- Plain-text and Markdown import/export. **Implemented.**
 - CI, lint, unit tests, and debug APK.
 
 ## 0.2 — Editor
 
 - Structured rich-text editing commands.
 - Selection-aware formatting toolbar.
-- Checklists, links, quotes, images, and basic tables.
-- Undo/redo, search within document, and keyboard shortcuts.
+- Checklists, links, quotes, images, and basic tables. **Implemented.**
+- Undo/redo, search within document, and keyboard shortcuts. **Implemented.**
 
 ## 0.3 — Documents
 
-- Folders, tags, favorites, archive, trash, and full-text search.
-- Local version history and recovery UI.
-- Share sheet, printing, and PDF export.
+- Folders, tags, favorites, archive, trash, and full-text search. **Implemented.**
+- Local version history and recovery UI. **Implemented.**
+- Share sheet, printing, and PDF export. **Implemented.**
 
 ## 0.4 — Interoperability
 
-- DOCX import/export with round-trip test fixtures.
-- Clear fidelity reporting for unsupported constructs.
-- File association and reopen-in-place workflow where Android access permits it.
+- DOCX import/export with round-trip test fixtures. **Implemented for the R1 subset.**
+- Clear fidelity reporting for unsupported constructs. **Implemented.**
+- File association and import-on-open workflow where Android access permits it. **Implemented.**
 
 ## 0.5 — Adaptive polish
 

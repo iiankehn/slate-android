@@ -5,12 +5,17 @@ enum class RichTextStyle {
     Italic,
     Underline,
     HeadingOne,
+    Link,
+    Quote,
+    Image,
+    Table,
 }
 
 data class RichTextRange(
     val style: RichTextStyle,
     val start: Int,
     val end: Int,
+    val data: String? = null,
 ) {
     init {
         require(start >= 0) { "A rich-text range cannot start before zero." }

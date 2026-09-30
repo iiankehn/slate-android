@@ -1,7 +1,16 @@
 package com.iiankehn.slate.ui
 
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -14,6 +23,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -44,7 +54,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,8 +66,16 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
@@ -67,27 +87,97 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iiankehn.slate.SlateViewModel
+import com.iiankehn.slate.io.AndroidDocumentActions
+import com.iiankehn.slate.io.DocumentFormats
 import com.iiankehn.slate.model.Document
 import com.iiankehn.slate.model.DocumentTitlePolicy
 import com.iiankehn.slate.model.RichTextDocument
+import com.iiankehn.slate.model.RichTextRange
 import com.iiankehn.slate.model.RichTextStyle
 import com.iiankehn.slate.ui.theme.CoreBlue
 import com.iiankehn.slate.ui.theme.Midnight
 import com.iiankehn.slate.ui.theme.SlateSurfaceRaised
 import com.iiankehn.slate.ui.theme.SlateTextMuted
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private enum class CompactDestination { Library, Editor }
+private enum class LibraryFilter { Documents, Favorites, Archive, Trash }
+private enum class ExportFormat(val extension: String, val mime: String) {
+    Text("txt", "text/plain"), Markdown("md", "text/markdown"), Docx("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"), Pdf("pdf", "application/pdf")
+}
+private data class ExportRequest(val document: Document, val format: ExportFormat)
 
 @Composable
 fun SlateApp(viewModel: SlateViewModel) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
     val documents = uiState.documents
     var selectedId by remember { mutableStateOf<String?>(null) }
     var destination by remember { mutableStateOf(CompactDestination.Library) }
+    var pendingExport by remember { mutableStateOf<ExportRequest?>(null) }
+
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) cursor.getString(0) else "Imported document"
+                    } ?: "Imported document"
+                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: error("Unable to read the selected document.")
+                    val title = name.substringBeforeLast('.').ifBlank { "Imported document" }
+                    when (name.substringAfterLast('.', "").lowercase()) {
+                        "md", "markdown" -> DocumentFormats.importMarkdown(bytes, title)
+                        "docx" -> DocumentFormats.importDocx(bytes, title)
+                        else -> DocumentFormats.importText(bytes, title)
+                    }
+                }
+            }.onSuccess { imported ->
+                selectedId = viewModel.importDocument(imported).id
+                destination = CompactDestination.Editor
+                if (imported.warnings.isNotEmpty()) Toast.makeText(context, imported.warnings.joinToString(" "), Toast.LENGTH_LONG).show()
+            }.onFailure { Toast.makeText(context, it.message ?: "Import failed", Toast.LENGTH_LONG).show() }
+        }
+    }
+
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val request = pendingExport
+        val uri = result.data?.data
+        pendingExport = null
+        if (request != null && uri != null) scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val bytes = when (request.format) {
+                        ExportFormat.Text -> DocumentFormats.exportText(request.document.body)
+                        ExportFormat.Markdown -> DocumentFormats.exportMarkdown(request.document.body)
+                        ExportFormat.Docx -> DocumentFormats.exportDocx(request.document.title, request.document.body)
+                        ExportFormat.Pdf -> AndroidDocumentActions.renderPdf(request.document)
+                    }
+                    context.contentResolver.openOutputStream(uri, "w")?.use { it.write(bytes) }
+                        ?: error("Unable to write the selected file.")
+                }
+            }.onSuccess { Toast.makeText(context, "Export complete", Toast.LENGTH_SHORT).show() }
+                .onFailure { Toast.makeText(context, it.message ?: "Export failed", Toast.LENGTH_LONG).show() }
+        }
+    }
+
+    fun export(document: Document, format: ExportFormat) {
+        pendingExport = ExportRequest(document, format)
+        val base = DocumentTitlePolicy.displayTitle(document.title, document.body.text)
+            .replace(Regex("[^A-Za-z0-9._-]+"), "-").trim('-').ifBlank { "Slate-document" }
+        exportLauncher.launch(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            type = format.mime
+            putExtra(Intent.EXTRA_TITLE, "$base.${format.extension}")
+            addCategory(Intent.CATEGORY_OPENABLE)
+        })
+    }
 
     LaunchedEffect(documents) {
         if (documents.none { it.id == selectedId }) {
-            selectedId = documents.firstOrNull { !it.isArchived }?.id ?: documents.firstOrNull()?.id
+            selectedId = documents.firstOrNull { !it.isArchived && !it.isDeleted }?.id ?: documents.firstOrNull()?.id
         }
     }
 
@@ -97,7 +187,7 @@ fun SlateApp(viewModel: SlateViewModel) {
     }
 
     val selected = documents.firstOrNull { it.id == selectedId }
-        ?: documents.firstOrNull { !it.isArchived }
+        ?: documents.firstOrNull { !it.isArchived && !it.isDeleted }
         ?: documents.first()
 
     fun newDocument() {
@@ -105,7 +195,7 @@ fun SlateApp(viewModel: SlateViewModel) {
     }
 
     fun selectAfterRemoval(documentId: String) {
-        val replacement = documents.firstOrNull { it.id != documentId && !it.isArchived }
+        val replacement = documents.firstOrNull { it.id != documentId && !it.isArchived && !it.isDeleted }
         selectedId = replacement?.id ?: viewModel.createDocument().id
     }
 
@@ -132,6 +222,7 @@ fun SlateApp(viewModel: SlateViewModel) {
                         selectedId = selected.id,
                         onDocumentSelected = { selectedId = it.id },
                         onNewDocument = { newDocument() },
+                        onImport = { importLauncher.launch(arrayOf("text/plain", "text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
                         modifier = Modifier.width(360.dp).fillMaxHeight(),
                     )
                     Editor(
@@ -145,9 +236,17 @@ fun SlateApp(viewModel: SlateViewModel) {
                             if (changed.isArchived) selectAfterRemoval(it.id) else selectedId = changed.id
                         },
                         onDelete = {
-                            viewModel.deleteDocument(it)
+                            viewModel.moveToTrash(it)
                             selectAfterRemoval(it.id)
                         },
+                        onToggleFavorite = { viewModel.toggleFavorite(it) },
+                        onOrganize = { document, folder, tags -> viewModel.updateOrganization(document, folder, tags) },
+                        onRestore = { viewModel.restoreFromTrash(it) },
+                        onPermanentlyDelete = { viewModel.permanentlyDelete(it); selectAfterRemoval(it.id) },
+                        onLoadHistory = viewModel::loadHistory,
+                        history = uiState.history[selected.id].orEmpty(),
+                        onRestoreVersion = { version -> viewModel.restoreVersion(selected, version) },
+                        onExport = { format -> export(selected, format) },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -163,6 +262,7 @@ fun SlateApp(viewModel: SlateViewModel) {
                         newDocument()
                         destination = CompactDestination.Editor
                     },
+                    onImport = { importLauncher.launch(arrayOf("text/plain", "text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
@@ -178,10 +278,18 @@ fun SlateApp(viewModel: SlateViewModel) {
                         destination = CompactDestination.Library
                     },
                     onDelete = {
-                        viewModel.deleteDocument(it)
+                        viewModel.moveToTrash(it)
                         selectAfterRemoval(it.id)
                         destination = CompactDestination.Library
                     },
+                    onToggleFavorite = { viewModel.toggleFavorite(it) },
+                    onOrganize = { document, folder, tags -> viewModel.updateOrganization(document, folder, tags) },
+                    onRestore = { viewModel.restoreFromTrash(it) },
+                    onPermanentlyDelete = { viewModel.permanentlyDelete(it); selectAfterRemoval(it.id) },
+                    onLoadHistory = viewModel::loadHistory,
+                    history = uiState.history[selected.id].orEmpty(),
+                    onRestoreVersion = { version -> viewModel.restoreVersion(selected, version) },
+                    onExport = { format -> export(selected, format) },
                     onBack = { destination = CompactDestination.Library },
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -208,10 +316,22 @@ private fun DocumentLibrary(
     selectedId: String,
     onDocumentSelected: (Document) -> Unit,
     onNewDocument: () -> Unit,
+    onImport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val activeDocuments = documents.filterNot(Document::isArchived)
-    val archivedDocuments = documents.filter(Document::isArchived)
+    var query by remember { mutableStateOf("") }
+    var filter by remember { mutableStateOf(LibraryFilter.Documents) }
+    val visibleDocuments = documents.filter { document ->
+        val inFilter = when (filter) {
+            LibraryFilter.Documents -> !document.isArchived && !document.isDeleted
+            LibraryFilter.Favorites -> document.isFavorite && !document.isDeleted
+            LibraryFilter.Archive -> document.isArchived && !document.isDeleted
+            LibraryFilter.Trash -> document.isDeleted
+        }
+        val matches = query.isBlank() || listOf(document.title, document.body.text, document.folder, document.tags.joinToString(" "))
+            .any { it.contains(query, ignoreCase = true) }
+        inFilter && matches
+    }
 
     Surface(
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
@@ -233,6 +353,33 @@ private fun DocumentLibrary(
                 ) { Text("New") }
             }
 
+            BasicTextField(
+                value = query,
+                onValueChange = { query = it },
+                singleLine = true,
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp),
+                cursorBrush = SolidColor(CoreBlue),
+                decorationBox = { field ->
+                    Surface(color = SlateSurfaceRaised, shape = RoundedCornerShape(14.dp)) {
+                        Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp)) {
+                            if (query.isBlank()) Text("Search title, text, folders, tags…", color = SlateTextMuted, fontSize = 14.sp)
+                            field()
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+            )
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+            ) {
+                LibraryFilter.entries.forEach { option ->
+                    FormattingButton(option.name, active = filter == option) { filter = option }
+                }
+                FormattingButton("Import", onClick = onImport)
+            }
+
             Text(
                 "On this device",
                 color = SlateTextMuted,
@@ -240,29 +387,16 @@ private fun DocumentLibrary(
                 modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp),
             )
 
-            if (activeDocuments.isEmpty() && archivedDocuments.isEmpty()) {
+            if (visibleDocuments.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No documents yet", color = SlateTextMuted)
+                    Text(if (query.isBlank()) "Nothing here yet" else "No matching documents", color = SlateTextMuted)
                 }
             } else {
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
                 ) {
-                    items(activeDocuments, key = { it.id }) { document ->
-                        DocumentRow(document, selectedId == document.id) { onDocumentSelected(document) }
-                    }
-                    if (archivedDocuments.isNotEmpty()) {
-                        item(key = "archived-heading") {
-                            Text(
-                                "Archived",
-                                color = SlateTextMuted,
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp),
-                            )
-                        }
-                    }
-                    items(archivedDocuments, key = { "archived-${it.id}" }) { document ->
+                    items(visibleDocuments, key = { it.id }) { document ->
                         DocumentRow(document, selectedId == document.id) { onDocumentSelected(document) }
                     }
                 }
@@ -290,6 +424,7 @@ private fun DocumentRow(
                 Box(Modifier.size(7.dp).background(CoreBlue, CircleShape))
                 Spacer(Modifier.width(8.dp))
             }
+            if (document.isFavorite) Text("★ ", color = CoreBlue)
             Text(
                 DocumentTitlePolicy.displayTitle(document.title, document.body.text),
                 color = if (document.isArchived) SlateTextMuted else MaterialTheme.colorScheme.onSurface,
@@ -298,6 +433,14 @@ private fun DocumentRow(
             )
         }
         Text(document.updatedLabel, color = SlateTextMuted, fontSize = 12.sp)
+        if (document.folder.isNotBlank() || document.tags.isNotEmpty()) {
+            Text(
+                listOfNotNull(document.folder.takeIf(String::isNotBlank), document.tags.takeIf { it.isNotEmpty() }?.joinToString(" · ") { "#$it" }).joinToString("  "),
+                color = SlateTextMuted,
+                fontSize = 11.sp,
+                maxLines = 1,
+            )
+        }
     }
 }
 
@@ -316,15 +459,32 @@ private fun Editor(
     onTogglePin: (Document) -> Unit,
     onArchive: (Document) -> Unit,
     onDelete: (Document) -> Unit,
+    onToggleFavorite: (Document) -> Unit,
+    onOrganize: (Document, String, Set<String>) -> Unit,
+    onRestore: (Document) -> Unit,
+    onPermanentlyDelete: (Document) -> Unit,
+    onLoadHistory: (String) -> Unit,
+    history: List<Document>,
+    onRestoreVersion: (Document) -> Unit,
+    onExport: (ExportFormat) -> Unit,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
 ) {
+    val context = LocalContext.current
     val undoStack = remember(document.id) { mutableStateListOf<EditorSnapshot>() }
     val redoStack = remember(document.id) { mutableStateListOf<EditorSnapshot>() }
     val titleFocusRequester = remember(document.id) { FocusRequester() }
     var renameRequest by remember(document.id) { mutableStateOf(0) }
     var menuExpanded by remember(document.id) { mutableStateOf(false) }
     var confirmDelete by remember(document.id) { mutableStateOf(false) }
+    var showOrganize by remember(document.id) { mutableStateOf(false) }
+    var showHistory by remember(document.id) { mutableStateOf(false) }
+    var showFind by remember(document.id) { mutableStateOf(false) }
+    var showLink by remember(document.id) { mutableStateOf(false) }
+    var folderDraft by remember(document.id) { mutableStateOf(document.folder) }
+    var tagsDraft by remember(document.id) { mutableStateOf(document.tags.joinToString(", ")) }
+    var findDraft by remember(document.id) { mutableStateOf("") }
+    var linkDraft by remember(document.id) { mutableStateOf("https://") }
     var bodyValue by remember(document.id) {
         mutableStateOf(
             TextFieldValue(
@@ -377,6 +537,25 @@ private fun Editor(
         commit(document.copy(body = body))
     }
 
+    fun insertText(text: String, style: RichTextStyle? = null, data: String? = null) {
+        val start = bodyValue.selection.min.coerceIn(0, document.body.text.length)
+        val end = bodyValue.selection.max.coerceIn(start, document.body.text.length)
+        val updatedText = document.body.text.replaceRange(start, end, text)
+        var body = document.body.updateText(updatedText)
+        if (style != null && text.isNotEmpty()) {
+            body = body.copy(ranges = body.ranges + RichTextRange(style, start, start + text.length, data)).normalized()
+        }
+        bodyValue = TextFieldValue(annotatedBody(body), TextRange(start + text.length))
+        commit(document.copy(body = body))
+    }
+
+    val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            insertText("🖼 Image", RichTextStyle.Image, uri.toString())
+        }
+    }
+
     Column(modifier.background(Color.Transparent).navigationBarsPadding()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -409,6 +588,24 @@ private fun Editor(
                         },
                     )
                     DropdownMenuItem(
+                        text = { Text(if (document.isFavorite) "Remove favorite" else "Favorite") },
+                        onClick = { menuExpanded = false; onToggleFavorite(document) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Folder & tags") },
+                        onClick = { menuExpanded = false; showOrganize = true },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Version history") },
+                        onClick = { menuExpanded = false; onLoadHistory(document.id); showHistory = true },
+                    )
+                    DropdownMenuItem(text = { Text("Export text") }, onClick = { menuExpanded = false; onExport(ExportFormat.Text) })
+                    DropdownMenuItem(text = { Text("Export Markdown") }, onClick = { menuExpanded = false; onExport(ExportFormat.Markdown) })
+                    DropdownMenuItem(text = { Text("Export DOCX") }, onClick = { menuExpanded = false; onExport(ExportFormat.Docx) })
+                    DropdownMenuItem(text = { Text("Export PDF") }, onClick = { menuExpanded = false; onExport(ExportFormat.Pdf) })
+                    DropdownMenuItem(text = { Text("Share") }, onClick = { menuExpanded = false; AndroidDocumentActions.share(context, document) })
+                    DropdownMenuItem(text = { Text("Print") }, onClick = { menuExpanded = false; AndroidDocumentActions.print(context, document) })
+                    DropdownMenuItem(
                         text = { Text("Duplicate") },
                         onClick = {
                             menuExpanded = false
@@ -429,13 +626,12 @@ private fun Editor(
                             onArchive(document)
                         },
                     )
-                    DropdownMenuItem(
-                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                        onClick = {
-                            menuExpanded = false
-                            confirmDelete = true
-                        },
-                    )
+                    if (document.isDeleted) {
+                        DropdownMenuItem(text = { Text("Restore from trash") }, onClick = { menuExpanded = false; onRestore(document) })
+                        DropdownMenuItem(text = { Text("Delete permanently", color = MaterialTheme.colorScheme.error) }, onClick = { menuExpanded = false; onPermanentlyDelete(document) })
+                    } else {
+                        DropdownMenuItem(text = { Text("Move to trash", color = MaterialTheme.colorScheme.error) }, onClick = { menuExpanded = false; confirmDelete = true })
+                    }
                 }
             }
         }
@@ -487,6 +683,11 @@ private fun Editor(
                     )
                     FormattingButton(label = "List", onClick = { applyPrefix("• ") })
                     FormattingButton(label = "Check", onClick = { applyPrefix("☐ ") })
+                    FormattingButton(label = "Quote", onClick = { applyStyle(RichTextStyle.Quote, blockStyle = true) })
+                    FormattingButton(label = "Link", onClick = { showLink = true })
+                    FormattingButton(label = "Image", onClick = { imageLauncher.launch(arrayOf("image/*")) })
+                    FormattingButton(label = "Table", onClick = { insertText("| Column 1 | Column 2 |\n| --- | --- |\n| Value | Value |", RichTextStyle.Table) })
+                    FormattingButton(label = "Find", onClick = { showFind = true })
                     FormattingButton(
                         label = "↶",
                         enabled = undoStack.isNotEmpty(),
@@ -524,8 +725,36 @@ private fun Editor(
                             field()
                         }
                     },
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.weight(1f).fillMaxWidth().onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown || !event.isCtrlPressed) return@onPreviewKeyEvent false
+                        when (event.key) {
+                            Key.B -> { applyStyle(RichTextStyle.Bold); true }
+                            Key.I -> { applyStyle(RichTextStyle.Italic); true }
+                            Key.U -> { applyStyle(RichTextStyle.Underline); true }
+                            Key.F -> { showFind = true; true }
+                            Key.Z -> {
+                                if (undoStack.isNotEmpty()) {
+                                    val previous = undoStack.removeAt(undoStack.lastIndex)
+                                    redoStack += EditorSnapshot(document.title, document.body)
+                                    onDocumentChange(document.copy(title = previous.title, body = previous.body))
+                                }
+                                true
+                            }
+                            Key.Y -> {
+                                if (redoStack.isNotEmpty()) {
+                                    val next = redoStack.removeAt(redoStack.lastIndex)
+                                    undoStack += EditorSnapshot(document.title, document.body)
+                                    onDocumentChange(document.copy(title = next.title, body = next.body))
+                                }
+                                true
+                            }
+                            else -> false
+                        }
+                    },
                 )
+                document.body.ranges.filter { it.style == RichTextStyle.Image && it.data != null }.take(3).forEach { range ->
+                    ImagePreview(range.data!!)
+                }
             }
         }
     }
@@ -534,19 +763,112 @@ private fun Editor(
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             title = { Text("Delete document?") },
-            text = { Text("This removes the document from this prototype. This action cannot be undone.") },
+            text = { Text("The document will move to Trash and can be restored later.") },
             confirmButton = {
                 TextButton(
                     onClick = {
                         confirmDelete = false
                         onDelete(document)
                     },
-                ) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                ) { Text("Move to Trash", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
             },
         )
+    }
+
+    if (showOrganize) {
+        AlertDialog(
+            onDismissRequest = { showOrganize = false },
+            title = { Text("Folder and tags") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    BasicTextField(folderDraft, { folderDraft = it }, textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface), decorationBox = { field -> FieldShell("Folder", folderDraft, field) })
+                    BasicTextField(tagsDraft, { tagsDraft = it }, textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface), decorationBox = { field -> FieldShell("Tags, separated by commas", tagsDraft, field) })
+                }
+            },
+            confirmButton = { TextButton(onClick = { onOrganize(document, folderDraft, tagsDraft.split(',').map(String::trim).filter(String::isNotEmpty).toSet()); showOrganize = false }) { Text("Save") } },
+            dismissButton = { TextButton(onClick = { showOrganize = false }) { Text("Cancel") } },
+        )
+    }
+
+    if (showLink) {
+        AlertDialog(
+            onDismissRequest = { showLink = false },
+            title = { Text("Insert link") },
+            text = { BasicTextField(linkDraft, { linkDraft = it }, textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface), decorationBox = { field -> FieldShell("https://example.com", linkDraft, field) }) },
+            confirmButton = { TextButton(onClick = {
+                val selection = selectionOrWordRange(document.body.text, bodyValue.selection)
+                val label = document.body.text.substring(selection.min, selection.max).ifBlank { linkDraft }
+                bodyValue = bodyValue.copy(selection = selection)
+                insertText(label, RichTextStyle.Link, linkDraft)
+                showLink = false
+            }) { Text("Insert") } },
+            dismissButton = { TextButton(onClick = { showLink = false }) { Text("Cancel") } },
+        )
+    }
+
+    if (showFind) {
+        AlertDialog(
+            onDismissRequest = { showFind = false },
+            title = { Text("Find in document") },
+            text = { BasicTextField(findDraft, { findDraft = it }, textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface), decorationBox = { field -> FieldShell("Search", findDraft, field) }) },
+            confirmButton = { TextButton(onClick = {
+                val start = document.body.text.indexOf(findDraft, bodyValue.selection.max.coerceAtMost(document.body.text.length), ignoreCase = true)
+                    .takeIf { it >= 0 } ?: document.body.text.indexOf(findDraft, ignoreCase = true)
+                if (start >= 0 && findDraft.isNotEmpty()) bodyValue = bodyValue.copy(selection = TextRange(start, start + findDraft.length))
+                else Toast.makeText(context, "No match", Toast.LENGTH_SHORT).show()
+            }) { Text("Find next") } },
+            dismissButton = { TextButton(onClick = { showFind = false }) { Text("Close") } },
+        )
+    }
+
+    if (showHistory) {
+        AlertDialog(
+            onDismissRequest = { showHistory = false },
+            title = { Text("Version history") },
+            text = {
+                LazyColumn {
+                    if (history.isEmpty()) item { Text("Loading history…", color = SlateTextMuted) }
+                    items(history.take(30), key = { it.updatedAtEpochMillis }) { version ->
+                        TextButton(onClick = { onRestoreVersion(version); showHistory = false }) {
+                            Text("Restore ${version.updatedLabel} · ${version.body.text.take(48)}")
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showHistory = false }) { Text("Close") } },
+        )
+    }
+}
+
+@Composable
+private fun ImagePreview(uri: String) {
+    val context = LocalContext.current
+    val bitmap by produceState<Bitmap?>(initialValue = null, uri) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                context.contentResolver.openInputStream(Uri.parse(uri))?.use(BitmapFactory::decodeStream)
+            }.getOrNull()
+        }
+    }
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap!!.asImageBitmap(),
+            contentDescription = "Document image",
+            modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp).clip(RoundedCornerShape(14.dp)),
+        )
+    }
+}
+
+@Composable
+private fun FieldShell(placeholder: String, value: String, field: @Composable () -> Unit) {
+    Surface(color = SlateSurfaceRaised, shape = RoundedCornerShape(12.dp)) {
+        Box(Modifier.fillMaxWidth().padding(12.dp)) {
+            if (value.isBlank()) Text(placeholder, color = SlateTextMuted)
+            field()
+        }
     }
 }
 
@@ -581,6 +903,10 @@ private fun annotatedBody(body: RichTextDocument): AnnotatedString = AnnotatedSt
             RichTextStyle.Italic -> SpanStyle(fontStyle = FontStyle.Italic)
             RichTextStyle.Underline -> SpanStyle(textDecoration = TextDecoration.Underline)
             RichTextStyle.HeadingOne -> SpanStyle(fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            RichTextStyle.Link -> SpanStyle(color = CoreBlue, textDecoration = TextDecoration.Underline)
+            RichTextStyle.Quote -> SpanStyle(fontStyle = FontStyle.Italic, color = SlateTextMuted)
+            RichTextStyle.Image -> SpanStyle(color = CoreBlue, fontWeight = FontWeight.SemiBold)
+            RichTextStyle.Table -> SpanStyle(fontWeight = FontWeight.Medium)
         }
         addStyle(style, range.start, range.end)
     }

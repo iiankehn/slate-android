@@ -10,6 +10,9 @@ Slate is private by construction.
 - Automatic Android cloud backup and device transfer are disabled at the foundation stage to prevent an unclear copy of private writing. A future encrypted backup design requires an explicit product decision.
 - External files are treated as untrusted input. Import is size-limited, parsed off the UI thread, and validated before commit.
 - Export and sharing use Android's scoped file APIs and temporary grants.
+- DOCX parsing limits archive entry count and decoded XML size to reduce resource-exhaustion risk.
+- Slate blocks screenshots and recent-app preview capture while a document is visible.
+- Image attachments use user-selected document URIs with scoped read grants; Slate never requests broad media or storage access.
 - Release builds use shrinking and static verification; GitHub workflows receive read-only repository permissions by default.
 
 Before beta, add threat-model tests covering malicious documents, oversized attachments, interrupted writes, recovery, clipboard leakage, screen capture policy, and device-lock behavior.

@@ -43,6 +43,13 @@ class DocumentRepository(
         dao.deleteDocument(document.id)
     }
 
+    suspend fun history(documentId: String): List<Document> =
+        dao.getRecoveryEntries(documentId).map(RecoveryEntryEntity::toModel)
+
+    suspend fun permanentlyDelete(document: Document) {
+        dao.deleteDocument(document.id)
+    }
+
     private suspend fun recoverInterruptedWrites() {
         val current = dao.getDocuments().associateBy { it.document.id }
         val newestRecoveries = dao.getRecoveryEntries().distinctBy(RecoveryEntryEntity::documentId)
@@ -67,6 +74,10 @@ private fun Document.toEntity() = DocumentEntity(
     updatedLabel = updatedLabel,
     isPinned = isPinned,
     isArchived = isArchived,
+    isFavorite = isFavorite,
+    isDeleted = isDeleted,
+    folder = folder,
+    tagsPayload = tags.sorted().joinToString(TAG_SEPARATOR),
     updatedAtEpochMillis = updatedAtEpochMillis,
 )
 
@@ -76,6 +87,7 @@ private fun Document.toRangeEntities() = body.normalized().ranges.map { range ->
         style = range.style.name,
         start = range.start,
         end = range.end,
+        data = range.data,
     )
 }
 
@@ -90,6 +102,7 @@ private fun DocumentWithRanges.toModel() = Document(
                     style = RichTextStyle.valueOf(range.style),
                     start = range.start,
                     end = range.end,
+                    data = range.data,
                 )
             }.getOrNull()
         },
@@ -97,6 +110,10 @@ private fun DocumentWithRanges.toModel() = Document(
     updatedLabel = document.updatedLabel,
     isPinned = document.isPinned,
     isArchived = document.isArchived,
+    isFavorite = document.isFavorite,
+    isDeleted = document.isDeleted,
+    folder = document.folder,
+    tags = document.tagsPayload.toTags(),
     updatedAtEpochMillis = document.updatedAtEpochMillis,
 )
 
@@ -108,6 +125,10 @@ private fun Document.toRecovery(isDeletion: Boolean = false) = RecoveryEntryEnti
     updatedLabel = updatedLabel,
     isPinned = isPinned,
     isArchived = isArchived,
+    isFavorite = isFavorite,
+    isDeleted = isDeleted,
+    folder = folder,
+    tagsPayload = tags.sorted().joinToString(TAG_SEPARATOR),
     isDeletion = isDeletion,
     createdAtEpochMillis = updatedAtEpochMillis,
 )
@@ -119,20 +140,33 @@ private fun RecoveryEntryEntity.toModel() = Document(
     updatedLabel = updatedLabel,
     isPinned = isPinned,
     isArchived = isArchived,
+    isFavorite = isFavorite,
+    isDeleted = isDeleted,
+    folder = folder,
+    tags = tagsPayload.toTags(),
     updatedAtEpochMillis = createdAtEpochMillis,
 )
 
 internal object RangePayload {
     fun encode(ranges: List<RichTextRange>): String = ranges.joinToString(";") { range ->
-        "${range.style.name},${range.start},${range.end}"
+        listOf(range.style.name, range.start, range.end, range.data.orEmpty())
+            .joinToString(",") { java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(it.toString().toByteArray()) }
     }
 
     fun decode(payload: String): List<RichTextRange> = payload
         .split(';')
         .mapNotNull { encoded ->
             val parts = encoded.split(',')
-            if (parts.size != 3) return@mapNotNull null
+            if (parts.size !in 3..4) return@mapNotNull null
             runCatching {
+                val decoded = parts.map { String(java.util.Base64.getUrlDecoder().decode(it)) }
+                RichTextRange(
+                    style = RichTextStyle.valueOf(decoded[0]),
+                    start = decoded[1].toInt(),
+                    end = decoded[2].toInt(),
+                    data = decoded.getOrNull(3)?.ifBlank { null },
+                )
+            }.recoverCatching {
                 RichTextRange(
                     style = RichTextStyle.valueOf(parts[0]),
                     start = parts[1].toInt(),
@@ -141,3 +175,6 @@ internal object RangePayload {
             }.getOrNull()
         }
 }
+
+private const val TAG_SEPARATOR = "\u001F"
+private fun String.toTags(): Set<String> = split(TAG_SEPARATOR).map(String::trim).filter(String::isNotEmpty).toSet()
