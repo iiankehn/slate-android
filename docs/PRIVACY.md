@@ -3,7 +3,7 @@
 Slate is private by construction.
 
 - No telemetry, diagnostics upload, analytics, ads, identifiers, experiments, or sponsored content.
-- No network permission in the base application.
+- Network access is limited to a user-initiated update check and APK download from the official GitHub repository. Slate performs no background polling.
 - No contacts, location, microphone, camera, or broad storage permission.
 - User writing stays in app-private storage unless the user explicitly imports, exports, shares, or later enables an optional sync provider.
 - Current documents and bounded recovery checkpoints are stored in an app-private Room database. Recovery checkpoints are capped at 30 entries per document.
@@ -14,5 +14,6 @@ Slate is private by construction.
 - Slate blocks screenshots and recent-app preview capture while a document is visible.
 - Image attachments use user-selected document URIs with scoped read grants; Slate never requests broad media or storage access.
 - Release builds use shrinking and static verification; GitHub workflows receive read-only repository permissions by default.
+- Downloaded updates are rejected unless their SHA-256 checksum matches the signed release workflow's update manifest. Android independently enforces the app signing certificate during installation.
 
 Before beta, add threat-model tests covering malicious documents, oversized attachments, interrupted writes, recovery, clipboard leakage, screen capture policy, and device-lock behavior.

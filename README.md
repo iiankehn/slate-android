@@ -16,8 +16,9 @@ Slate R1 includes:
 - folders, tags, favorites, full-library search, recoverable Trash, and version history;
 - plain-text, Markdown, and DOCX interchange plus PDF export, printing, sharing, and file associations;
 - immediate recovery checkpoints and debounced automatic saving;
-- the Midnight and CORE Glass visual direction using CORE blue `#0072BC`;
-- no network, advertising, location, contacts, or analytics permissions;
+- a flat Material 3 Expressive-inspired interface using CORE blue `#0072BC`;
+- a user-initiated, checksum-verified GitHub updater with no background polling;
+- no advertising, location, contacts, analytics, telemetry, or diagnostics permissions;
 - Android 12 (API 31) as the minimum supported release;
 - GitHub Actions verification for every change and a monthly R1 release workflow;
 - unit tests and lint/build gates.
@@ -28,7 +29,7 @@ Documents now survive app restarts. Each edit is written to a bounded recovery j
 
 The project is pinned to JDK 17, Gradle 8.13, and Android Gradle Plugin 8.13.2. GitHub Actions can do the heavy build work:
 
-Every push to `main` is verified by GitHub Actions. On the first day of each month, the R1 release workflow builds an optimized signed APK, generates a SHA-256 checksum, and creates or refreshes a draft GitHub release. See `docs/RELEASING.md` for the required repository secrets and manual publishing flow.
+Every push to `main` is verified by GitHub Actions. On the first day of each month, the R1 release workflow builds an optimized signed APK, generates a SHA-256 checksum and updater manifest, and creates or refreshes a draft GitHub release. See `docs/RELEASING.md` for the required repository secrets and manual publishing flow.
 
 For a local build with a compatible Android SDK:
 

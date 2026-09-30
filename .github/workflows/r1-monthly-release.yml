@@ -33,7 +33,7 @@ jobs:
           gradle-version: "8.13"
       - name: Set release identifiers
         run: |
-          echo "SLATE_R1_VERSION_CODE=$(date -u +%Y%m)" >> "$GITHUB_ENV"
+          echo "SLATE_R1_VERSION_CODE=$((1000000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
           echo "RELEASE_MONTH=$(date -u +%Y-%m)" >> "$GITHUB_ENV"
       - name: Restore signing keystore
         env:
@@ -50,6 +50,10 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "release/Slate-R1-${RELEASE_MONTH}.apk"
           cd release
           sha256sum "Slate-R1-${RELEASE_MONTH}.apk" > "Slate-R1-${RELEASE_MONTH}.apk.sha256"
+          apk_sha=$(cut -d ' ' -f 1 "Slate-R1-${RELEASE_MONTH}.apk.sha256")
+          printf '{"versionCode":%s,"versionName":"R1","apkUrl":"https://github.com/iiankehn/slate-android/releases/download/r1-%s/Slate-R1-%s.apk","sha256":"%s"}\n' \
+            "$SLATE_R1_VERSION_CODE" "$RELEASE_MONTH" "$RELEASE_MONTH" "$apk_sha" \
+            > slate-r1-update.json
       - name: Create or refresh GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

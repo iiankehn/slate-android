@@ -97,6 +97,8 @@ import com.iiankehn.slate.model.DocumentTitlePolicy
 import com.iiankehn.slate.model.RichTextDocument
 import com.iiankehn.slate.model.RichTextRange
 import com.iiankehn.slate.model.RichTextStyle
+import com.iiankehn.slate.update.SlateUpdate
+import com.iiankehn.slate.update.SlateUpdater
 import com.iiankehn.slate.ui.theme.CoreBlue
 import com.iiankehn.slate.ui.theme.Midnight
 import com.iiankehn.slate.ui.theme.SlateBorder
@@ -113,6 +115,13 @@ private enum class ExportFormat(val extension: String, val mime: String) {
     Text("txt", "text/plain"), Markdown("md", "text/markdown"), Docx("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"), Pdf("pdf", "application/pdf")
 }
 private data class ExportRequest(val document: Document, val format: ExportFormat)
+private sealed interface UpdateUiState {
+    data object Hidden : UpdateUiState
+    data object Checking : UpdateUiState
+    data object Downloading : UpdateUiState
+    data class Available(val update: SlateUpdate) : UpdateUiState
+    data class Message(val title: String, val message: String) : UpdateUiState
+}
 
 @Composable
 fun SlateApp(viewModel: SlateViewModel) {
@@ -123,6 +132,69 @@ fun SlateApp(viewModel: SlateViewModel) {
     var selectedId by remember { mutableStateOf<String?>(null) }
     var destination by remember { mutableStateOf(CompactDestination.Library) }
     var pendingExport by remember { mutableStateOf<ExportRequest?>(null) }
+    var updateUiState by remember { mutableStateOf<UpdateUiState>(UpdateUiState.Hidden) }
+    var pendingInstallPermission by remember { mutableStateOf<SlateUpdate?>(null) }
+
+    fun downloadUpdate(update: SlateUpdate) {
+        updateUiState = UpdateUiState.Downloading
+        scope.launch {
+            runCatching {
+                val apk = SlateUpdater.download(context, update)
+                SlateUpdater.launchInstaller(context, apk)
+            }
+                .onSuccess {
+                    updateUiState = UpdateUiState.Hidden
+                }
+                .onFailure { error ->
+                    updateUiState = UpdateUiState.Message(
+                        title = "Update failed",
+                        message = error.message ?: "Slate could not download the update.",
+                    )
+                }
+        }
+    }
+
+    val installPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        val update = pendingInstallPermission
+        pendingInstallPermission = null
+        if (update != null && SlateUpdater.canRequestInstall(context)) {
+            downloadUpdate(update)
+        } else if (update != null) {
+            updateUiState = UpdateUiState.Message(
+                title = "Permission required",
+                message = "Allow Slate to install updates, then try again.",
+            )
+        }
+    }
+
+    fun installUpdate(update: SlateUpdate) {
+        if (SlateUpdater.canRequestInstall(context)) {
+            downloadUpdate(update)
+        } else {
+            pendingInstallPermission = update
+            installPermissionLauncher.launch(SlateUpdater.installPermissionIntent(context))
+        }
+    }
+
+    fun checkForUpdates() {
+        updateUiState = UpdateUiState.Checking
+        scope.launch {
+            runCatching { SlateUpdater.checkForUpdate(context) }
+                .onSuccess { update ->
+                    updateUiState = if (update == null) {
+                        UpdateUiState.Message("Slate is up to date", "No newer published R1 build is available.")
+                    } else {
+                        UpdateUiState.Available(update)
+                    }
+                }
+                .onFailure { error ->
+                    updateUiState = UpdateUiState.Message(
+                        title = "Unable to check",
+                        message = error.message ?: "Slate could not contact GitHub.",
+                    )
+                }
+        }
+    }
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
@@ -247,6 +319,7 @@ fun SlateApp(viewModel: SlateViewModel) {
                         history = uiState.history[selected.id].orEmpty(),
                         onRestoreVersion = { version -> viewModel.restoreVersion(selected, version) },
                         onExport = { format -> export(selected, format) },
+                        onCheckForUpdates = ::checkForUpdates,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -290,11 +363,47 @@ fun SlateApp(viewModel: SlateViewModel) {
                     history = uiState.history[selected.id].orEmpty(),
                     onRestoreVersion = { version -> viewModel.restoreVersion(selected, version) },
                     onExport = { format -> export(selected, format) },
+                    onCheckForUpdates = ::checkForUpdates,
                     onBack = { destination = CompactDestination.Library },
                     modifier = Modifier.fillMaxSize(),
                 )
             }
         }
+    }
+
+    when (val state = updateUiState) {
+        UpdateUiState.Hidden -> Unit
+        UpdateUiState.Checking -> AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Checking for updates") },
+            text = { Text("Slate is checking the official GitHub release channel.") },
+            confirmButton = {},
+        )
+        UpdateUiState.Downloading -> AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Downloading update") },
+            text = { Text("The APK will be verified before Android opens the installer.") },
+            confirmButton = {},
+        )
+        is UpdateUiState.Available -> AlertDialog(
+            onDismissRequest = { updateUiState = UpdateUiState.Hidden },
+            title = { Text("Slate ${state.update.versionName} update") },
+            text = { Text("Download the verified update and install it over this copy? Your documents stay on this device.") },
+            confirmButton = {
+                TextButton(onClick = { installUpdate(state.update) }) { Text("Update") }
+            },
+            dismissButton = {
+                TextButton(onClick = { updateUiState = UpdateUiState.Hidden }) { Text("Later") }
+            },
+        )
+        is UpdateUiState.Message -> AlertDialog(
+            onDismissRequest = { updateUiState = UpdateUiState.Hidden },
+            title = { Text(state.title) },
+            text = { Text(state.message) },
+            confirmButton = {
+                TextButton(onClick = { updateUiState = UpdateUiState.Hidden }) { Text("OK") }
+            },
+        )
     }
 }
 
@@ -485,6 +594,7 @@ private fun Editor(
     history: List<Document>,
     onRestoreVersion: (Document) -> Unit,
     onExport: (ExportFormat) -> Unit,
+    onCheckForUpdates: () -> Unit,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
 ) {
@@ -638,6 +748,7 @@ private fun Editor(
                     DropdownMenuItem(text = { Text("Export PDF") }, onClick = { menuExpanded = false; onExport(ExportFormat.Pdf) })
                     DropdownMenuItem(text = { Text("Share") }, onClick = { menuExpanded = false; AndroidDocumentActions.share(context, document) })
                     DropdownMenuItem(text = { Text("Print") }, onClick = { menuExpanded = false; AndroidDocumentActions.print(context, document) })
+                    DropdownMenuItem(text = { Text("Check for updates") }, onClick = { menuExpanded = false; onCheckForUpdates() })
                     DropdownMenuItem(
                         text = { Text("Duplicate") },
                         onClick = {
