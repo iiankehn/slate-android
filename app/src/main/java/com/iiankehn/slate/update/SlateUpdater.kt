@@ -147,7 +147,7 @@ object SlateUpdater {
             setRequestProperty("Accept", "application/vnd.github+json")
             setRequestProperty("User-Agent", "Slate-R1-Updater")
             connect()
-            require(url.protocol == "https") { "The update redirected to an insecure connection." }
+            require(this.url.protocol == "https") { "The update redirected to an insecure connection." }
             if (responseCode !in 200..299) {
                 disconnect()
                 error(if (responseCode == 404) "No published Slate update is available yet." else "GitHub returned update error $responseCode.")
