@@ -2,9 +2,9 @@
 
 Slate is a private, local-first writing app for Android. It is designed to be as immediate as a notes app and structured enough for complete documents.
 
-## Foundation status
+## Slate R1 status
 
-The `0.1.0-dev` groundwork includes:
+Slate R1 includes:
 
 - a native Kotlin and Jetpack Compose application shell;
 - compact phone navigation and an adaptive two-pane tablet/laptop layout;
@@ -16,10 +16,8 @@ The `0.1.0-dev` groundwork includes:
 - the Midnight and CORE Glass visual direction using CORE blue `#0072BC`;
 - no network, advertising, location, contacts, or analytics permissions;
 - Android 12 (API 31) as the minimum supported release;
-- a GitHub Actions verification workflow for `main` and `beta`;
+- GitHub Actions verification for every change and a monthly R1 release workflow;
 - initial unit tests and lint/build gates.
-
-The current launcher mark is deliberately a placeholder. Final Slate identity work should be completed before a public beta.
 
 Documents now survive app restarts. Each edit is written to a bounded recovery journal immediately, while the main document snapshot is saved after a short idle delay. On launch, Slate restores a journal entry when it is newer than the main document record.
 
@@ -27,9 +25,7 @@ Documents now survive app restarts. Each edit is written to a bounded recovery j
 
 The project is pinned to JDK 17, Gradle 8.13, and Android Gradle Plugin 8.13.2. GitHub Actions can do the heavy build work:
 
-1. Create a public repository, recommended name `slate-android`.
-2. Push this project to `main`.
-3. GitHub Actions builds and uploads `slate-debug-apk`.
+Every push to `main` is verified by GitHub Actions. On the first day of each month, the R1 release workflow builds an optimized signed APK, generates a SHA-256 checksum, and creates or refreshes a draft GitHub release. See `docs/RELEASING.md` for the required repository secrets and manual publishing flow.
 
 For a local build with a compatible Android SDK:
 

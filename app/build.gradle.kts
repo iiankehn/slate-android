@@ -13,11 +13,35 @@ android {
         applicationId = "com.iiankehn.slate"
         minSdk = 31
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0-dev"
+        versionCode = providers.environmentVariable("SLATE_R1_VERSION_CODE")
+            .orElse("1")
+            .get()
+            .toInt()
+        versionName = "R1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
+    }
+
+    val releaseKeystorePath = providers.environmentVariable("SLATE_R1_KEYSTORE_PATH").orNull
+    val releaseKeyAlias = providers.environmentVariable("SLATE_R1_KEY_ALIAS").orNull
+    val releaseKeystorePassword = providers.environmentVariable("SLATE_R1_KEYSTORE_PASSWORD").orNull
+    val releaseKeyPassword = providers.environmentVariable("SLATE_R1_KEY_PASSWORD").orNull
+
+    if (
+        releaseKeystorePath != null &&
+        releaseKeyAlias != null &&
+        releaseKeystorePassword != null &&
+        releaseKeyPassword != null
+    ) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
@@ -28,6 +52,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
