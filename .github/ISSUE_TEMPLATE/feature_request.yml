@@ -1,0 +1,55 @@
+name: Feature request
+description: Propose an improvement for the focused Slate R1 product
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Slate R1 and Slate R2 are distinct products. R1 requests should improve the focused local-first notes/document experience rather than turn R1 into the full R2 word processor.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the writing or document-management problem, not only the proposed control.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain what Slate should do and where the behavior belongs.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Include current workarounds or smaller approaches.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Product area
+      options:
+        - Editor and formatting
+        - Library and organization
+        - Import and export
+        - Saving and recovery
+        - Adaptive UI and accessibility
+        - Privacy and security
+        - Updates and installation
+        - Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: R1 principles
+      options:
+        - label: The proposal works without requiring a Slate account.
+          required: true
+        - label: The proposal preserves local-first writing and does not require telemetry or advertising.
+          required: true
+        - label: I searched existing open and closed issues.
+          required: true

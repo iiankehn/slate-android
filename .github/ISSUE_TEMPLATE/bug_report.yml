@@ -1,0 +1,105 @@
+name: Bug report
+description: Report a reproducible Slate R1 problem
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve Slate R1. Remove private writing, personal information, credentials, and signing data before submitting.
+  - type: input
+    id: release
+    attributes:
+      label: Slate release
+      description: Find the release on the APK download page or include the release month.
+      placeholder: Slate R1 — 2026-09
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      placeholder: Pixel 8, Android 16
+    validations:
+      required: true
+  - type: dropdown
+    id: form_factor
+    attributes:
+      label: Form factor
+      options:
+        - Phone
+        - Tablet
+        - Foldable
+        - Chromebook or resizable desktop window
+        - Emulator
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: install_source
+    attributes:
+      label: Installation source
+      placeholder: Official GitHub APK, native updater, or other source
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the smallest reliable sequence starting from launching Slate.
+      placeholder: |
+        1. Open Slate
+        2. Open a document
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Frequency
+      options:
+        - Every time
+        - Often
+        - Sometimes
+        - Once
+    validations:
+      required: true
+  - type: dropdown
+    id: data_risk
+    attributes:
+      label: Does this risk document loss or block document access?
+      options:
+        - "No"
+        - "Possibly"
+        - "Yes"
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add redacted screenshots, recordings, or file-format details. Do not attach private documents.
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing open and closed issues.
+          required: true
+        - label: I removed private writing, personal information, credentials, and signing data.
+          required: true
+        - label: This is not a security vulnerability with exploit details.
+          required: true
