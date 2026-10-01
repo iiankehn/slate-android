@@ -1,47 +1,43 @@
-# Roadmap
+# Slate R1 roadmap
 
-## 0.1 — Foundation
+R1 and R2 are distinct products. This roadmap tracks the focused R1 repository and does not treat R2 as R1's next version.
 
-- Brand direction and adaptive Compose shell.
-- Versioned document model.
-- Initial rich-text ranges and working editor commands.
-- Document actions for rename, duplicate, pin, archive, and delete.
-- Durable Room-backed library and autosave journal. **Implemented in the 0.1 development foundation.**
-- Plain-text and Markdown import/export. **Implemented.**
-- CI, lint, unit tests, and debug APK.
+## Delivered in the September 2026 release
 
-## 0.2 — Editor
+### Foundation
 
-- Structured rich-text editing commands.
-- Selection-aware formatting toolbar.
-- Checklists, links, quotes, images, and basic tables. **Implemented.**
-- Undo/redo, search within document, and keyboard shortcuts. **Implemented.**
+- Native Kotlin/Compose app, Material 3 theme, adaptive shell, launcher identity, Android 12 minimum support.
+- Versioned rich-text document model and selection-aware editor commands.
+- Room-backed library, immediate recovery journal, debounced current snapshots, and interrupted-write restoration.
+- GitHub CI, unit tests, lint, debug artifacts, optimized signing workflow, checksums, and monthly release automation.
 
-## 0.3 — Documents
+### Editor and documents
 
-- Folders, tags, favorites, archive, trash, and full-text search. **Implemented.**
-- Local version history and recovery UI. **Implemented.**
-- Share sheet, printing, and PDF export. **Implemented.**
+- Bold, italic, underline, H1, quote, links, lists, checklists, image references, simple table template, and find.
+- Session undo/redo and local version restoration.
+- Rename, duplicate, pin, favorite, archive, Trash, permanent delete, folders, tags, and search.
+- Compact system Back behavior and keyboard-safe formatting controls.
 
-## 0.4 — Interoperability
+### Interchange and platform integration
 
-- DOCX import/export with round-trip test fixtures. **Implemented for the R1 subset.**
-- Clear fidelity reporting for unsupported constructs. **Implemented.**
-- File association and import-on-open workflow where Android access permits it. **Implemented.**
+- Plain text, Markdown, and DOCX import/export with explicit R1 fidelity boundaries.
+- PDF export, Android printing, plain-text sharing, file associations, and scoped file access.
+- User-initiated native updater with checksum and signature enforcement.
 
-## 0.5 — Adaptive polish
+### Release polish
 
-- Tablet, foldable, and resizable-window refinement.
-- Keyboard, mouse, stylus, and accessibility audit.
-- Performance work for long documents and large libraries.
+- Flat Material 3 Expressive-inspired visual system replacing the early glass direction.
+- Phone and expanded-window refinement, system-bar fixes, compact image previews, and documentation.
+- Public `r1-2026-09` release with full install/update path.
 
-## 0.9 — Release candidate
+## R1 maintenance priorities
 
-- Security and dependency audit.
-- Data-loss, migration, recovery, malicious-file, and interruption testing.
-- Branding, screenshots, documentation, updater, and release signing review.
+- Respond to reproducible data-loss, recovery, import, export, navigation, and update issues first.
+- Expand tests for interrupted writes, database migration, malicious documents, long documents, and large libraries.
+- Continue accessibility review for screen readers, focus order, touch targets, keyboard navigation, and contrast.
+- Measure editor performance before increasing format or attachment complexity.
+- Improve fidelity only where it remains understandable, local-first, and dependable.
 
-## 1.0 — Stable
+## Outside the R1 product boundary
 
-- Local-first notes and document editing with dependable import/export.
-- ARM64 Android release, with expanded architecture support evaluated separately.
+Full desktop-class word processing, advanced page layout, broad architecture commitments, Googlebook Android specialization, and the complete multi-form-factor word-processing experience belong to Slate R2. R2 has its own purpose and monthly release line; it is not an R1 milestone or replacement.

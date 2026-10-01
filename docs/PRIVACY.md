@@ -1,19 +1,46 @@
 # Privacy and security baseline
 
-Slate is private by construction.
+Slate R1 is private by construction.
 
-- No telemetry, diagnostics upload, analytics, ads, identifiers, experiments, or sponsored content.
-- Network access is limited to a user-initiated update check and APK download from the official GitHub repository. Slate performs no background polling.
-- No contacts, location, microphone, camera, or broad storage permission.
-- User writing stays in app-private storage unless the user explicitly imports, exports, shares, or later enables an optional sync provider.
-- Current documents and bounded recovery checkpoints are stored in an app-private Room database. Recovery checkpoints are capped at 30 entries per document.
-- Automatic Android cloud backup and device transfer are disabled at the foundation stage to prevent an unclear copy of private writing. A future encrypted backup design requires an explicit product decision.
-- External files are treated as untrusted input. Import is size-limited, parsed off the UI thread, and validated before commit.
-- Export and sharing use Android's scoped file APIs and temporary grants.
-- DOCX parsing limits archive entry count and decoded XML size to reduce resource-exhaustion risk.
-- Slate blocks screenshots and recent-app preview capture while a document is visible.
-- Image attachments use user-selected document URIs with scoped read grants; Slate never requests broad media or storage access.
-- Release builds use shrinking and static verification; GitHub workflows receive read-only repository permissions by default.
-- Downloaded updates are rejected unless their SHA-256 checksum matches the signed release workflow's update manifest. Android independently enforces the app signing certificate during installation.
+## Data handling
 
-Before beta, add threat-model tests covering malicious documents, oversized attachments, interrupted writes, recovery, clipboard leakage, screen capture policy, and device-lock behavior.
+- Documents, metadata, formatting ranges, and recovery checkpoints are stored in an app-private Room database.
+- The device copy is authoritative. Writing does not require a server or account.
+- Recovery history is capped at 30 checkpoints per document.
+- Android cloud backup and device transfer are disabled to avoid creating an unclear remote copy of private writing.
+- Uninstalling Slate or clearing its app storage removes app-private documents. Users should export important work first.
+- User writing leaves app-private storage only through an explicit import, export, share, print, or user-selected image action.
+
+## Permissions and platform access
+
+- No contacts, location, microphone, camera, advertising identifier, analytics, or broad storage permission.
+- Imports, exports, and images use Android's scoped document APIs and temporary or persisted URI grants.
+- Screenshot and recent-app preview capture are blocked while the Slate activity is visible.
+- Automatic backup is disabled in both the application manifest and data-extraction rules.
+
+## Network behavior
+
+Slate has network permission solely for the user-initiated native updater.
+
+- No background polling, telemetry, diagnostics upload, analytics, ads, experiments, or sponsored content.
+- Selecting **Check for updates** contacts GitHub's API and official `iiankehn/slate-android` release URLs.
+- Cleartext traffic is disabled.
+- Downloaded update files are cached in a private update directory and shared only with Android's package installer through a narrowly scoped `FileProvider` grant.
+
+## Untrusted input controls
+
+- General document imports are limited to 25 MB.
+- DOCX decoding is limited to 2,000 archive entries and 20 MB of document XML.
+- Imports are parsed off the UI thread and committed only after successful validation.
+- Update JSON is limited to 64 KB.
+- Update APKs are limited to 128 MB and must use an official-repository HTTPS URL.
+- Slate verifies the published SHA-256 value before installation; Android separately verifies the application signing certificate.
+
+## Release-chain protections
+
+- Release keystores and passwords remain in GitHub Actions secrets and are never committed.
+- Release builds run unit tests and Android lint before optimized APK assembly.
+- Each release includes the APK, its SHA-256 checksum file, and the updater manifest.
+- Internal Android version codes increase monotonically while the user-facing product remains `R1`.
+
+See [SECURITY.md](../SECURITY.md) for responsible vulnerability reporting.
