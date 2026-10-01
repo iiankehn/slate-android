@@ -1,49 +1,113 @@
 # Slate by CORE
 
-Slate is a private, local-first writing app for Android. It is designed to be as immediate as a notes app and structured enough for complete documents.
+Slate R1 is a private, local-first notes and document app for Android. It combines the speed of a notes app with document organization, rich-text tools, file interchange, recovery history, and a native update path—without requiring an account.
 
-## Slate R1 status
+## Get Slate R1
 
-Slate R1 includes:
+- [Download the latest signed APK](https://github.com/iiankehn/slate-android/releases/latest)
+- Requires Android 12 or newer (API 31+)
+- Package: `com.iiankehn.slate`
 
-- a native Kotlin and Jetpack Compose application shell;
-- compact phone navigation and an adaptive two-pane tablet/laptop layout;
-- a Room-backed document library with a versioned rich-text model;
-- selection-aware bold, italic, underline, and heading formatting;
-- bulleted lists, checklists, and editor undo/redo;
-- links, quotes, embedded images, simple tables, find, and keyboard shortcuts;
-- working rename, duplicate, pin, archive, and delete document actions;
-- folders, tags, favorites, full-library search, recoverable Trash, and version history;
-- plain-text, Markdown, and DOCX interchange plus PDF export, printing, sharing, and file associations;
-- immediate recovery checkpoints and debounced automatic saving;
-- a flat Material 3 Expressive-inspired interface using CORE blue `#0072BC`;
-- a user-initiated, checksum-verified GitHub updater with no background polling;
-- no advertising, location, contacts, analytics, telemetry, or diagnostics permissions;
-- Android 12 (API 31) as the minimum supported release;
-- GitHub Actions verification for every change and a monthly R1 release workflow;
-- unit tests and lint/build gates.
+When installing the APK for the first time, Android may ask you to allow installs from the app that opened the download. Future releases can be installed from **Editor menu → Check for updates**. Android always shows the final installation confirmation.
 
-Documents now survive app restarts. Each edit is written to a bounded recovery journal immediately, while the main document snapshot is saved after a short idle delay. On launch, Slate restores a journal entry when it is newer than the main document record.
+## Highlights
 
-## Build
+### Writing and editing
 
-The project is pinned to JDK 17, Gradle 8.13, and Android Gradle Plugin 8.13.2. GitHub Actions can do the heavy build work:
+- Selection-aware bold, italic, underline, H1, quote, and link formatting
+- Bulleted lists, checklists, image references, and simple text tables
+- Find in document, editor undo/redo, and hardware-keyboard shortcuts
+- Keyboard-safe formatting dock that remains available while typing
+- Continuous local saving with a visible saved/saving indicator
 
-Every push to `main` is verified by GitHub Actions. On the first day of each month, the R1 release workflow builds an optimized signed APK, generates a SHA-256 checksum and updater manifest, and creates or refreshes a draft GitHub release. See `docs/RELEASING.md` for the required repository secrets and manual publishing flow.
+### Document library
 
-For a local build with a compatible Android SDK:
+- Create, rename, duplicate, pin, favorite, archive, trash, restore, and permanently delete documents
+- Organize with folders and tags
+- Search titles, document text, folders, and tags
+- Separate Documents, Favorites, Archive, and Trash views
+- Up to 30 local recovery checkpoints per document with version restoration
+
+### Files and Android integration
+
+- Import plain text, Markdown, and DOCX files
+- Export plain text, Markdown, DOCX, and PDF
+- Share through Android, print through the system print service, and open supported file associations
+- Scoped file access without broad storage permission
+
+### Native Android experience
+
+- Native Kotlin and Jetpack Compose
+- Flat Material 3 Expressive-inspired interface with Slate's Midnight and CORE-blue identity
+- Compact phone navigation plus an adaptive two-pane layout for larger windows
+- System Back returns from the phone editor to the library before exiting
+- Formatting controls remain visible when the software keyboard opens
+
+### Privacy and updates
+
+- Writing is stored in an app-private Room database on the device
+- No account, ads, analytics, telemetry, diagnostics upload, contacts, location, microphone, or camera access
+- Network access is used only after the user selects **Check for updates**
+- Update APKs are checked against the release SHA-256 manifest; Android also enforces the signing certificate
+- No background update polling
+
+See [Features](docs/FEATURES.md), the [User guide](docs/USER_GUIDE.md), and the full [R1 release notes](RELEASE_NOTES.md).
+
+## R1 and R2
+
+Slate R1 and Slate R2 are distinct products for different purposes. The names do not represent sequential upgrades or release increments.
+
+- **Slate R1** is the focused, local-first notes and document experience in this repository.
+- **Slate R2** is the separate full word-processing product intended for broader form factors, Googlebook Android support, and ARM64/x86_64 targets.
+
+Each product follows its own monthly release line.
+
+## Build and verify
+
+The project is pinned to JDK 17, Gradle 8.13, Android Gradle Plugin 8.13.2, Kotlin 2.3.10, and compile/target SDK 36.
+
+With a compatible Android SDK installed:
 
 ```bash
-gradle testDebugUnitTest lintDebug assembleDebug
+gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
 ```
+
+GitHub Actions runs that verification for pushes to `main` and `beta`, and for pull requests. Successful CI runs retain a debug APK artifact. The monthly release workflow builds the optimized signed APK and its checksum/update manifest.
+
+## Documentation
+
+| Document | Purpose |
+| --- | --- |
+| [Release notes](RELEASE_NOTES.md) | Complete R1 release summary, installation, fixes, and limitations |
+| [Features](docs/FEATURES.md) | Detailed capability and format-support reference |
+| [User guide](docs/USER_GUIDE.md) | Installation, everyday use, shortcuts, files, recovery, and updates |
+| [Product brief](docs/PRODUCT.md) | Product scope, principles, and the R1/R2 boundary |
+| [Architecture](docs/ARCHITECTURE.md) | UI, state, persistence, format, and updater design |
+| [Privacy](docs/PRIVACY.md) | Data handling, permissions, network behavior, and security baseline |
+| [Releasing](docs/RELEASING.md) | Signing, monthly workflow, version codes, and publication process |
+| [Roadmap](docs/ROADMAP.md) | Completed R1 milestones and future maintenance areas |
+| [Contributing](CONTRIBUTING.md) | Development workflow and pull-request expectations |
+| [Security](SECURITY.md) | Private vulnerability-reporting guidance |
+
+## Report a problem or request a feature
+
+Use [GitHub Issues](https://github.com/iiankehn/slate-android/issues/new/choose) and select the appropriate form.
+
+For bugs, include:
+
+- Android version, device/model, and phone/tablet/foldable form factor
+- The Slate release and installation source
+- Exact reproduction steps, expected result, and actual result
+- Whether the problem risks document loss or blocks access to a document
+- Screenshots or a short recording when useful, after removing private writing and personal information
+
+Do not post private documents, signing material, credentials, or exploit details in a public issue. Follow [SECURITY.md](SECURITY.md) for vulnerabilities.
 
 ## Product principles
 
-1. Writing must never depend on a connection or account.
+1. Writing never depends on a connection or account.
 2. The device copy is authoritative.
-3. Autosave and recovery are core features, not polish.
-4. Common formats belong at the boundary; Slate's internal document model stays independent.
-5. No telemetry, diagnostics, advertising identifiers, behavioral analytics, or experiments.
-6. Tablet and keyboard behavior is designed alongside phone behavior.
-
-See `docs/` for the product brief, architecture, privacy baseline, and roadmap.
+3. Autosave and recovery are core features.
+4. Common file formats stay at the boundary; Slate's versioned document model remains independent.
+5. No telemetry, advertising identifiers, behavioral analytics, or experiments.
+6. Phone, tablet, keyboard, and touch behavior are designed together.
