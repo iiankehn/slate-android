@@ -130,6 +130,6 @@ R1 and R2 are distinct Slate products, not increments in a shared version sequen
 
 - [Report a bug](https://github.com/iiankehn/slate-android/issues/new?template=bug_report.yml)
 - [Request an R1 feature](https://github.com/iiankehn/slate-android/issues/new?template=feature_request.yml)
-- Read [SECURITY.md](SECURITY.md) before reporting a vulnerability.
+- Read the [security policy](https://github.com/iiankehn/slate-android/security/policy) before reporting a vulnerability.
 
 Never attach private writing, credentials, signing material, or unredacted personal information to a public issue.
