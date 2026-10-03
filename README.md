@@ -2,6 +2,8 @@
 
 Slate R1 is a private, local-first notes and document app for Android. It combines the speed of a notes app with document organization, rich-text tools, file interchange, recovery history, and a native update path—without requiring an account.
 
+Visit the [Slate website](https://slate.iiankehn.com/) to compare the distinct R1 and R2 products, open their repositories, and find official downloads.
+
 ## Get Slate R1
 
 - [Download the latest signed APK](https://github.com/iiankehn/slate-android/releases/latest)
