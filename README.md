@@ -86,6 +86,7 @@ GitHub Actions runs that verification for pushes to `main` and `beta`, and for p
 | [Product brief](docs/PRODUCT.md) | Product scope, principles, and the R1/R2 boundary |
 | [Architecture](docs/ARCHITECTURE.md) | UI, state, persistence, format, and updater design |
 | [Privacy](docs/PRIVACY.md) | Data handling, permissions, network behavior, and security baseline |
+| [Visual identity](https://github.com/iiankehn/slate-r2-android/blob/main/docs/BRAND.md) | Shared Slate family mark, colors, and usage rules |
 | [Releasing](docs/RELEASING.md) | Signing, monthly workflow, version codes, and publication process |
 | [Roadmap](docs/ROADMAP.md) | Completed R1 milestones and future maintenance areas |
 | [Contributing](CONTRIBUTING.md) | Development workflow and pull-request expectations |
