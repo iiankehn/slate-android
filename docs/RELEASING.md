@@ -42,7 +42,7 @@ Signing files and passwords must never enter source control, logs, issue attachm
 - Note and Forge documents reopen after restart.
 - `.slx` and `.slxf` exports round-trip.
 - Import safety limits reject oversized or malformed input safely.
-- Back navigation, software keyboard insets, compact layout, and expanded layout are smoke-tested.
+- Back navigation, software keyboard insets, compact layout, and expanded layout are manually smoke-tested on available hardware.
 - The generated manifest URL, version code, byte size, and SHA-256 match the APK.
 - Release notes describe user-visible behavior and known limitations.
 
