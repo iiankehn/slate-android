@@ -134,10 +134,8 @@ import com.iiankehn.slate.model.ImageBlock
 import com.iiankehn.slate.model.ImageWrapping
 import com.iiankehn.slate.model.WordProcessingDocument
 import com.iiankehn.slate.model.SectionStart
-import com.iiankehn.slate.ui.theme.CanvasBackground
 import com.iiankehn.slate.ui.theme.CoreBlue
-import com.iiankehn.slate.ui.theme.Paper
-import com.iiankehn.slate.ui.theme.PaperText
+import com.iiankehn.slate.ui.theme.SlateEditorTheme
 import com.iiankehn.slate.update.SlateUpdater
 import com.iiankehn.slate.update.SlateUpdate
 import kotlinx.coroutines.Dispatchers
@@ -587,7 +585,14 @@ private fun WordProcessorWorkspace(
     onPrint: () -> Unit,
     onCheckUpdates: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val ribbonPreferences = remember(context) {
+        context.getSharedPreferences("slate-interface", android.content.Context.MODE_PRIVATE)
+    }
     var activeTab by remember { mutableStateOf(RibbonTab.Home) }
+    var phoneRibbonExpanded by remember {
+        mutableStateOf(ribbonPreferences.getBoolean("phone-ribbon-expanded", false))
+    }
     var showNavigation by remember { mutableStateOf(true) }
     var showInspector by remember { mutableStateOf(true) }
     var zoom by remember { mutableStateOf(100) }
@@ -660,28 +665,47 @@ private fun WordProcessorWorkspace(
     }
 
     BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()) {
+        val phone = maxWidth < 600.dp
         val tablet = maxWidth >= 840.dp
         val desktop = maxWidth >= 1200.dp
+        val showRibbonCommands = !phone || phoneRibbonExpanded
+        fun setPhoneRibbonExpanded(expanded: Boolean) {
+            phoneRibbonExpanded = expanded
+            ribbonPreferences.edit().putBoolean("phone-ribbon-expanded", expanded).apply()
+        }
         Column(Modifier.fillMaxSize()) {
             DocumentTitleBar(document, saving, onClose, onChange)
-            RibbonTabs(activeTab) { activeTab = it }
-            Ribbon(
-                tab = activeTab, compact = !tablet, document = document, selection = editorValue.selection,
-                onToggle = ::toggle, onInsert = ::insert, onNew = onNew, onOpen = onImport,
-                onToggleList = ::toggleList,
-                onAdjustListLevel = ::adjustListLevel,
-                onPageBreak = { publish(editor.insertPageBreak(editorValue.selection.min, editorValue.selection.max)) },
-                onSectionBreak = { start -> publish(editor.insertSectionBreak(editorValue.selection.min, editorValue.selection.max, start)) },
-                onEditHeaderFooter = { showHeaderFooterEditor = true },
-                onInsertTable = { publish(editor.insertTable(editorValue.selection.min, editorValue.selection.max)) },
-                onInsertImage = onChooseImage,
-                onLayout = ::updateLayout,
-                onCustomPageSize = { showCustomPageSizeEditor = true },
-                onExport = onExport, onShare = onShare, onPrint = onPrint, onCheckUpdates = onCheckUpdates,
-                showNavigation = showNavigation, showInspector = showInspector,
-                onToggleNavigation = { showNavigation = !showNavigation }, onToggleInspector = { showInspector = !showInspector },
-                onZoom = { zoom = it },
-            )
+            if (showRibbonCommands) {
+                RibbonTabs(
+                    active = activeTab,
+                    onSelect = { activeTab = it },
+                    onCollapse = if (phone) ({ setPhoneRibbonExpanded(false) }) else null,
+                )
+                Ribbon(
+                    tab = activeTab, compact = !tablet, document = document, selection = editorValue.selection,
+                    onToggle = ::toggle, onInsert = ::insert, onNew = onNew, onOpen = onImport,
+                    onToggleList = ::toggleList,
+                    onAdjustListLevel = ::adjustListLevel,
+                    onPageBreak = { publish(editor.insertPageBreak(editorValue.selection.min, editorValue.selection.max)) },
+                    onSectionBreak = { start -> publish(editor.insertSectionBreak(editorValue.selection.min, editorValue.selection.max, start)) },
+                    onEditHeaderFooter = { showHeaderFooterEditor = true },
+                    onInsertTable = { publish(editor.insertTable(editorValue.selection.min, editorValue.selection.max)) },
+                    onInsertImage = onChooseImage,
+                    onLayout = ::updateLayout,
+                    onCustomPageSize = { showCustomPageSizeEditor = true },
+                    onExport = onExport, onShare = onShare, onPrint = onPrint, onCheckUpdates = onCheckUpdates,
+                    showNavigation = showNavigation, showInspector = showInspector,
+                    onToggleNavigation = { showNavigation = !showNavigation }, onToggleInspector = { showInspector = !showInspector },
+                    onZoom = { zoom = it },
+                )
+            } else {
+                CompactRibbonDock(
+                    document = document,
+                    selection = editorValue.selection,
+                    onToggle = ::toggle,
+                    onExpand = { setPhoneRibbonExpanded(true) },
+                )
+            }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 if (tablet && showNavigation) NavigationPane(
@@ -690,7 +714,7 @@ private fun WordProcessorWorkspace(
                     onPageSelected = { activePage = it },
                     modifier = Modifier.width(230.dp).fillMaxHeight(),
                 )
-                Column(Modifier.weight(1f).fillMaxHeight().background(CanvasBackground)) {
+                Column(Modifier.weight(1f).fillMaxHeight().background(SlateEditorTheme.colors.canvas)) {
                     Ruler(zoom)
                     DocumentCanvas(
                         value = editorValue, zoom = zoom, focusRequester = focusRequester,
@@ -786,14 +810,48 @@ private fun DocumentTitleBar(document: Document, saving: Boolean, onClose: () ->
 }
 
 @Composable
-private fun RibbonTabs(active: RibbonTab, onSelect: (RibbonTab) -> Unit) {
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).background(MaterialTheme.colorScheme.surface)) {
-        RibbonTab.entries.forEach { tab ->
-            val selected = tab == active
-            Column(Modifier.clickable { onSelect(tab) }.padding(horizontal = 18.dp, vertical = 9.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(tab.name, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                if (selected) Spacer(Modifier.padding(top = 4.dp).width(28.dp).height(3.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(3.dp)))
+private fun RibbonTabs(active: RibbonTab, onSelect: (RibbonTab) -> Unit, onCollapse: (() -> Unit)? = null) {
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+                RibbonTab.entries.forEach { tab ->
+                    val selected = tab == active
+                    Column(Modifier.clickable { onSelect(tab) }.padding(horizontal = 18.dp, vertical = 9.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(tab.name, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (selected) Spacer(Modifier.padding(top = 4.dp).width(28.dp).height(3.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(3.dp)))
+                    }
+                }
             }
+            if (onCollapse != null) TextButton(
+                onClick = onCollapse,
+                modifier = Modifier.semantics { contentDescription = "Collapse formatting ribbon" },
+            ) { Text("Collapse") }
+        }
+    }
+}
+
+@Composable
+private fun CompactRibbonDock(
+    document: Document,
+    selection: TextRange,
+    onToggle: (RichTextStyle) -> Unit,
+    onExpand: () -> Unit,
+) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+        Row(
+            Modifier.fillMaxWidth().height(54.dp).padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text("Format", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 8.dp))
+            RibbonCommand("B", { onToggle(RichTextStyle.Bold) }, document.body.hasStyle(RichTextStyle.Bold, selection.min, selection.max), FontWeight.Black)
+            RibbonCommand("I", { onToggle(RichTextStyle.Italic) }, document.body.hasStyle(RichTextStyle.Italic, selection.min, selection.max), italic = true)
+            RibbonCommand("U", { onToggle(RichTextStyle.Underline) }, document.body.hasStyle(RichTextStyle.Underline, selection.min, selection.max), underline = true)
+            Spacer(Modifier.weight(1f))
+            TextButton(
+                onClick = onExpand,
+                modifier = Modifier.semantics { contentDescription = "Expand formatting ribbon" },
+            ) { Text("More") }
         }
     }
 }
@@ -940,7 +998,7 @@ private fun NavigationPane(
                 ) {
                     Surface(
                         Modifier.width(42.dp).aspectRatio(page.setup.widthPoints / page.setup.heightPoints),
-                        color = Paper,
+                        color = SlateEditorTheme.colors.paper,
                         border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) CoreBlue else MaterialTheme.colorScheme.outlineVariant),
                         shadowElevation = 1.dp,
                     ) {}
@@ -1133,8 +1191,8 @@ private fun DocumentCanvas(
                         .aspectRatio(page.setup.widthPoints / page.setup.heightPoints)
                         .clickable { onActivePageChange(pageIndex) }
                         .semantics { contentDescription = "Document page ${pageIndex + 1} of ${layout.pageCount}" },
-                    color = Paper,
-                    contentColor = PaperText,
+                    color = SlateEditorTheme.colors.paper,
+                    contentColor = SlateEditorTheme.colors.onPaper,
                     shape = RoundedCornerShape(3.dp),
                     border = if (selected) BorderStroke(2.dp, CoreBlue) else null,
                     shadowElevation = if (selected) 7.dp else 4.dp,
@@ -1168,7 +1226,7 @@ private fun DocumentCanvas(
                                 onActivePageChange(pageIndex)
                             },
                             textStyle = TextStyle(
-                                color = PaperText,
+                                color = SlateEditorTheme.colors.onPaper,
                                 fontSize = (17 * zoom / 100f).sp,
                                 lineHeight = (28 * zoom / 100f).sp,
                                 fontFamily = FontFamily.Serif,
@@ -1196,7 +1254,7 @@ private fun DocumentCanvas(
                             decorationBox = { inner ->
                                 if (pageValue.text.isEmpty()) Text(
                                     if (pageIndex == 0) "Start writing…" else "Continue writing…",
-                                    color = PaperText.copy(alpha = 0.42f),
+                                    color = SlateEditorTheme.colors.onPaper.copy(alpha = 0.42f),
                                     fontFamily = FontFamily.Serif,
                                     fontSize = 17.sp,
                                 )
@@ -1308,7 +1366,7 @@ private fun ListMarkerOverlay(
                     modifier = Modifier.offset(x.dp, y.dp).clickable {
                         if (marker.text == "☐" || marker.text == "☑") onToggleChecklistItem(fragment.blockId)
                     }.semantics { contentDescription = if (marker.text == "☑") "Checked checklist item" else "Checklist item" },
-                    color = PaperText,
+                    color = SlateEditorTheme.colors.onPaper,
                     fontSize = (11f * scale).coerceIn(9f, 18f).sp,
                     fontWeight = FontWeight.Medium,
                 )
@@ -1351,7 +1409,7 @@ private fun EditableTable(
     ) {
         Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Table · ${table.rows.size} × $columnCount", color = PaperText, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text("Table · ${table.rows.size} × $columnCount", color = SlateEditorTheme.colors.onPaper, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 TextButton(onClick = { onResize(table.id, table.rows.size + 1, columnCount) }) { Text("+ Row") }
                 TextButton(onClick = { onResize(table.id, table.rows.size, columnCount + 1) }) { Text("+ Column") }
                 TextButton(onClick = { onDelete(table.id) }) { Text("Delete table") }
@@ -1381,11 +1439,11 @@ private fun EditableTable(
                     row.cells.forEachIndexed { columnIndex, cell ->
                         if (cell.columnSpan == 0) return@forEachIndexed
                         val text = cell.blocks.joinToString("\n") { paragraph -> paragraph.runs.joinToString("") { it.text } }
-                        Surface(Modifier.weight(cell.columnSpan.toFloat()), color = Paper, border = BorderStroke(if (activeCell == (rowIndex to columnIndex)) 2.dp else 1.dp, if (activeCell == (rowIndex to columnIndex)) CoreBlue else Color(0xFFCAD3DF))) {
+                        Surface(Modifier.weight(cell.columnSpan.toFloat()), color = SlateEditorTheme.colors.paper, border = BorderStroke(if (activeCell == (rowIndex to columnIndex)) 2.dp else 1.dp, if (activeCell == (rowIndex to columnIndex)) CoreBlue else SlateEditorTheme.colors.paperOutline)) {
                             BasicTextField(
                                 value = text,
                                 onValueChange = { onUpdateCell(table.id, rowIndex, columnIndex, it) },
-                                textStyle = TextStyle(color = PaperText, fontSize = 14.sp),
+                                textStyle = TextStyle(color = SlateEditorTheme.colors.onPaper, fontSize = 14.sp),
                                 cursorBrush = SolidColor(CoreBlue),
                                 modifier = Modifier.fillMaxWidth()
                                     .onFocusChanged { if (it.isFocused) activeCell = rowIndex to columnIndex }
@@ -1396,7 +1454,7 @@ private fun EditableTable(
                                     }
                                     .padding(9.dp),
                                 decorationBox = { inner ->
-                                    if (text.isEmpty()) Text("Cell", color = PaperText.copy(alpha = 0.38f), fontSize = 14.sp)
+                                    if (text.isEmpty()) Text("Cell", color = SlateEditorTheme.colors.onPaper.copy(alpha = 0.38f), fontSize = 14.sp)
                                     inner()
                                 },
                             )
@@ -1461,17 +1519,17 @@ private fun EditableImage(
                 )
             } else {
                 Box(Modifier.fillMaxWidth().height(120.dp).background(Color(0xFFE8EDF5), RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
-                    Text("Picture preview unavailable", color = PaperText.copy(alpha = 0.62f))
+                    Text("Picture preview unavailable", color = SlateEditorTheme.colors.onPaper.copy(alpha = 0.62f))
                 }
             }
             BasicTextField(
                 value = image.description,
                 onValueChange = { onUpdate(image.id, it, image.widthPoints, image.heightPoints, image.wrapping) },
-                textStyle = TextStyle(color = PaperText, fontSize = 14.sp),
+                textStyle = TextStyle(color = SlateEditorTheme.colors.onPaper, fontSize = 14.sp),
                 cursorBrush = SolidColor(CoreBlue),
-                modifier = Modifier.fillMaxWidth().background(Paper, RoundedCornerShape(6.dp)).padding(9.dp),
+                modifier = Modifier.fillMaxWidth().background(SlateEditorTheme.colors.paper, RoundedCornerShape(6.dp)).padding(9.dp),
                 decorationBox = { inner ->
-                    if (image.description.isBlank()) Text("Describe this picture for accessibility", color = PaperText.copy(alpha = 0.42f), fontSize = 14.sp)
+                    if (image.description.isBlank()) Text("Describe this picture for accessibility", color = SlateEditorTheme.colors.onPaper.copy(alpha = 0.42f), fontSize = 14.sp)
                     inner()
                 },
             )

@@ -27,6 +27,21 @@ class SlateSmokeTest {
         composeRule.onNodeWithText("Untitled document")
             .assertIsDisplayed()
 
+        val phone = composeRule.activity.resources.configuration.screenWidthDp < 600
+        if (phone) {
+            composeRule.onNodeWithText("More")
+                .assertIsDisplayed()
+                .performClick()
+            composeRule.onNodeWithText("Collapse")
+                .assertIsDisplayed()
+                .performClick()
+            composeRule.onNodeWithText("More")
+                .assertIsDisplayed()
+        } else {
+            composeRule.onNodeWithText("File")
+                .assertIsDisplayed()
+        }
+
         composeRule.runOnUiThread {
             composeRule.activity.onBackPressedDispatcher.onBackPressed()
         }

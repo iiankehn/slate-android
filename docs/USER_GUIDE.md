@@ -8,7 +8,9 @@ The library badge shows **Note** while the file uses note-compatible content. If
 
 ## Use the workspace
 
-The Forge-derived ribbon groups editing and document actions. On narrower screens, groups scroll or compact while remaining available above the software keyboard. On larger windows, the workspace exposes more controls at once.
+The Forge-derived ribbon groups editing and document actions. On phones it starts as a compact dock with bold, italic, and underline controls; select **More** to reveal every ribbon tab and **Collapse** to return to the dock. Slate remembers that choice. The dock remains above the software keyboard. Tablets and larger windows keep the expanded ribbon and expose more controls at once.
+
+Slate follows Android's light or dark appearance automatically. The editor canvas, document pages, tables, and object controls change with the system theme for comfortable editing. This is a display preference only: it does not change the document's stored formatting or the white page used by exported and printed output.
 
 Common keyboard shortcuts include `Ctrl+B`, `Ctrl+I`, `Ctrl+U`, `Ctrl+F`, `Ctrl+Z`, and `Ctrl+Y`.
 

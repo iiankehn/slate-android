@@ -24,7 +24,8 @@ The same Forge-derived interface is used for both experiences. The library label
 
 ## Highlights
 
-- Material 3 Expressive-inspired ribbon workspace for phones, tablets, Googlebook Android devices, and desktop-sized windows
+- Material 3 Expressive-inspired workspace with native system light/dark themes and a theme-aware document canvas
+- Collapsible phone ribbon with persistent compact/expanded preference; expanded ribbon layouts on larger screens
 - Rich text, lists, checklists, links, images, tables, find, undo, redo, and keyboard shortcuts
 - Sections, page setup, headers and footers, page breaks, and paginated layout
 - Local Room database with autosave, recovery checkpoints, and version history

@@ -1,10 +1,15 @@
 package com.iiankehn.slate.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -21,11 +26,37 @@ val SlateSurfaceRaised = Color(0xFF1B2530)
 val SlateBorder = Color(0xFF2A3744)
 val SlateText = Color(0xFFF1F5F9)
 val SlateTextMuted = Color(0xFFA7B4C2)
-val CanvasBackground = Color(0xFFE3E7EC)
-val Paper = Color(0xFFFFFBFF)
-val PaperText = Color(0xFF1A1C1E)
+data class SlateEditorColors(
+    val canvas: Color,
+    val paper: Color,
+    val onPaper: Color,
+    val paperOutline: Color,
+)
 
-private val SlateColors = lightColorScheme(
+private val LightEditorColors = SlateEditorColors(
+    canvas = Color(0xFFE3E7EC),
+    paper = Color(0xFFFFFBFF),
+    onPaper = Color(0xFF1A1C1E),
+    paperOutline = Color(0xFFCAD3DF),
+)
+
+private val DarkEditorColors = SlateEditorColors(
+    canvas = Color(0xFF0B1016),
+    paper = Color(0xFF171D24),
+    onPaper = Color(0xFFE8EDF3),
+    paperOutline = Color(0xFF465462),
+)
+
+private val LocalSlateEditorColors = staticCompositionLocalOf { LightEditorColors }
+
+object SlateEditorTheme {
+    val colors: SlateEditorColors
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalSlateEditorColors.current
+}
+
+private val SlateLightColors = lightColorScheme(
     primary = CoreBlue,
     onPrimary = Color.White,
     primaryContainer = Color(0xFFD1E9FF),
@@ -47,6 +78,31 @@ private val SlateColors = lightColorScheme(
     outlineVariant = Color(0xFFC1C7CD),
     error = Color(0xFFBA1A1A),
     onError = Color.White,
+    scrim = Color.Black,
+)
+
+private val SlateDarkColors = darkColorScheme(
+    primary = CoreBlueLight,
+    onPrimary = Color(0xFF003354),
+    primaryContainer = Color(0xFF004B75),
+    onPrimaryContainer = Color(0xFFD1E9FF),
+    secondary = Color(0xFFB9C8D8),
+    onSecondary = Color(0xFF24323F),
+    secondaryContainer = Color(0xFF3A4856),
+    onSecondaryContainer = Color(0xFFD6E5F4),
+    background = Midnight,
+    onBackground = SlateText,
+    surface = SlateSurface,
+    onSurface = SlateText,
+    surfaceVariant = SlateSurfaceRaised,
+    onSurfaceVariant = SlateTextMuted,
+    surfaceContainer = SlateSurfaceSoft,
+    surfaceContainerHigh = SlateSurfaceRaised,
+    surfaceContainerHighest = Color(0xFF22303C),
+    outline = Color(0xFF8B98A5),
+    outlineVariant = SlateBorder,
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005),
     scrim = Color.Black,
 )
 
@@ -101,12 +157,20 @@ private val SlateShapes = Shapes(
     extraLarge = RoundedCornerShape(30.dp),
 )
 
+internal fun slateEditorColors(darkTheme: Boolean): SlateEditorColors =
+    if (darkTheme) DarkEditorColors else LightEditorColors
+
 @Composable
-fun SlateTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = SlateColors,
-        typography = SlateTypography,
-        shapes = SlateShapes,
-        content = content,
-    )
+fun SlateTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit,
+) {
+    CompositionLocalProvider(LocalSlateEditorColors provides slateEditorColors(darkTheme)) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) SlateDarkColors else SlateLightColors,
+            typography = SlateTypography,
+            shapes = SlateShapes,
+            content = content,
+        )
+    }
 }

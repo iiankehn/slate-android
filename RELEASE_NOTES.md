@@ -14,6 +14,9 @@ Slate Notes and Slate Forge now share one application, library, editor, document
 - Preserved the existing Notes Room database and added a schema migration for the adaptive experience state.
 - Retargeted the native updater and monthly release automation to the unified `iiankehn/slate-android` repository.
 - Added CI inspection for ARM64 and x86_64 native-library coverage.
+- Added native system-controlled light and dark themes across the library, workspace, controls, canvas, pages, tables, and embedded-object editors.
+- Kept editor theme colors presentation-only so changing the Android theme cannot alter saved documents or exported page colors.
+- Added a collapsible phone ribbon with always-available bold, italic, and underline actions plus a remembered compact/expanded preference.
 - Rewrote product, format, privacy, architecture, release, contribution, security, and user documentation for one product.
 
 ## Migration

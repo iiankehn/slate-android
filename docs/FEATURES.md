@@ -13,6 +13,9 @@
 
 ## Editing
 
+- Automatic Android light/dark appearance, including a theme-aware editing canvas that does not modify document output
+- Collapsible phone formatting ribbon with a remembered compact/expanded state
+
 - Rich text: bold, italic, underline, headings, quotes, links, lists, and checklists
 - Media and structure: images and tables
 - Document navigation: find, undo, redo, selection-aware editing, and keyboard shortcuts
