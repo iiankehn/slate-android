@@ -30,7 +30,13 @@ class DocumentExperiencePolicyTest {
         val wordDocument = WordProcessingDocument(
             id = "doc",
             title = "Journal",
-            sections = listOf(DocumentSection(blocks = listOf(ParagraphBlock(runs = listOf(TextRun(longText))))),
+            sections = listOf(
+                DocumentSection(
+                    blocks = listOf(
+                        ParagraphBlock(runs = listOf(TextRun(longText))),
+                    ),
+                ),
+            ),
         )
 
         assertEquals(DocumentExperience.Adaptive, DocumentExperiencePolicy.resolve(DocumentExperience.Adaptive, wordDocument))

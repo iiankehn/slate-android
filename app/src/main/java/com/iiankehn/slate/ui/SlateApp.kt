@@ -358,7 +358,7 @@ private fun materializeImportedImages(context: android.content.Context, imported
         asset.id to Uri.fromFile(file).toString()
     }
     val body = imported.body.copy(ranges = imported.body.ranges.map { range ->
-        val assetId = range.data?.removePrefix("asset:")?.takeIf { range.data?.startsWith("asset:") == true }
+        val assetId = range.data?.removePrefix("asset:")?.takeIf { range.data.startsWith("asset:") }
         if (assetId != null && assetId in sharedUris) range.copy(data = sharedUris.getValue(assetId)) else range
     }).normalized()
     val document = imported.wordProcessingDocument?.let { r2 ->
