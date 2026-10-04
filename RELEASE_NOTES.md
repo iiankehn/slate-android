@@ -1,4 +1,35 @@
-# Slate R1 — September 2026
+# Unified Slate — October 2026 development release
+
+Slate Notes and Slate Forge now share one application, library, editor, document model, and release line. This development release keeps the existing Slate Notes package and signing identity so installed Notes libraries can upgrade in place, while bringing the Forge-derived workspace and advanced word-processing model into that same app.
+
+## What changed
+
+- Replaced the separate-product architecture with one adaptive Slate app.
+- Made the Forge-derived ribbon workspace the interface for both quick notes and complete documents.
+- Added structure-aware Note and Forge classification. Ordinary rich text remains a Note; sections, custom page setup, headers, footers, structured tables, and page breaks promote the document to Forge. Document length is never used.
+- Made Forge promotion persistent so Slate cannot silently discard advanced layout.
+- Added full `.slxf` import/export alongside the portable `.slx` rich-note format.
+- Brought the Forge editing engine, document blocks, page model, pagination, DOCX importer, responsive workspace configuration, and tests into the main package.
+- Unified search, favorite, pin, archive, trash, restore, duplicate, import, export, print, share, and recovery paths.
+- Preserved the existing Notes Room database and added a schema migration for the adaptive experience state.
+- Retargeted the native updater and monthly release automation to the unified `iiankehn/slate-android` repository.
+- Added CI inspection for ARM64 and x86_64 native-library coverage.
+- Rewrote product, format, privacy, architecture, release, contribution, security, and user documentation for one product.
+
+## Migration
+
+- Existing Slate Notes users install the signed unified APK over their current installation; documents remain in the upgraded local database.
+- Users of the former standalone Slate Forge package should export `.slxf` or `.slx` files and import them into unified Slate. The two packages cannot directly share private Android data.
+
+## Known follow-up work
+
+The Forge start center still needs complete folder, tag, saved-search, and version-history controls. Encrypted whole-library backup, a guided standalone-Forge migration assistant, broader accessibility auditing, and large-document performance work remain on the roadmap.
+
+This section documents work on the unified release branch; it does not claim that a signed public APK has already been published.
+
+---
+
+# Historical release: Slate R1 — September 2026
 
 Slate R1 is the first official release of Slate by CORE: a private, local-first Android writing app designed to feel immediate for notes while remaining structured enough for longer documents.
 

@@ -1,5 +1,5 @@
 name: Feature request
-description: Propose an improvement for the focused Slate R1 product
+description: Propose an improvement for unified Slate
 title: "[Feature]: "
 labels:
   - enhancement
@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Slate R1 and Slate R2 are distinct products. R1 requests should improve the focused local-first notes/document experience rather than turn R1 into the full R2 word processor.
+        Slate is one adaptive product for quick notes and full word processing. Proposals should strengthen that shared foundation without creating parallel apps or compromising local-first behavior.
   - type: textarea
     id: problem
     attributes:

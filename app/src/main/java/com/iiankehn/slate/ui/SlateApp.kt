@@ -1,7 +1,6 @@
 package com.iiankehn.slate.ui
 
 import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -10,44 +9,49 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -56,147 +60,142 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iiankehn.slate.SlateViewModel
 import com.iiankehn.slate.io.AndroidDocumentActions
 import com.iiankehn.slate.io.DocumentFormats
-import com.iiankehn.slate.io.SlxCodec
+import com.iiankehn.slate.io.DocxEmbeddedImage
+import com.iiankehn.slate.io.R2DocumentBridge
 import com.iiankehn.slate.io.SlxAsset
+import com.iiankehn.slate.io.SlxCodec
+import com.iiankehn.slate.io.SlxfCodec
+import com.iiankehn.slate.editing.CharacterFormat
+import com.iiankehn.slate.editing.FlatTextEditorAdapter
+import com.iiankehn.slate.layout.DocumentLayoutEngine
+import com.iiankehn.slate.layout.DocumentLayout
+import com.iiankehn.slate.layout.FragmentKind
 import com.iiankehn.slate.model.Document
+import com.iiankehn.slate.model.DocumentExperience
+import com.iiankehn.slate.model.DocumentExperiencePolicy
 import com.iiankehn.slate.model.DocumentTitlePolicy
 import com.iiankehn.slate.model.RichTextDocument
-import com.iiankehn.slate.model.RichTextRange
 import com.iiankehn.slate.model.RichTextStyle
-import com.iiankehn.slate.update.SlateUpdate
-import com.iiankehn.slate.update.SlateUpdater
+import com.iiankehn.slate.model.NamedParagraphStyle
+import com.iiankehn.slate.model.ListKind
+import com.iiankehn.slate.model.PageMargins
+import com.iiankehn.slate.model.PageOrientation
+import com.iiankehn.slate.model.PageSize
+import com.iiankehn.slate.model.ParagraphAlignment
+import com.iiankehn.slate.model.ParagraphBlock
+import com.iiankehn.slate.model.TableBlock
+import com.iiankehn.slate.model.ImageBlock
+import com.iiankehn.slate.model.ImageWrapping
+import com.iiankehn.slate.model.WordProcessingDocument
+import com.iiankehn.slate.model.SectionStart
+import com.iiankehn.slate.ui.theme.CanvasBackground
 import com.iiankehn.slate.ui.theme.CoreBlue
-import com.iiankehn.slate.ui.theme.Midnight
-import com.iiankehn.slate.ui.theme.SlateBorder
-import com.iiankehn.slate.ui.theme.SlateSurfaceSoft
-import com.iiankehn.slate.ui.theme.SlateSurfaceRaised
-import com.iiankehn.slate.ui.theme.SlateTextMuted
+import com.iiankehn.slate.ui.theme.Paper
+import com.iiankehn.slate.ui.theme.PaperText
+import com.iiankehn.slate.update.SlateUpdater
+import com.iiankehn.slate.update.SlateUpdate
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-private enum class CompactDestination { Library, Editor }
+private enum class RibbonTab { File, Home, Insert, Layout, Review, View }
 private enum class LibraryFilter { Documents, Favorites, Archive, Trash }
-private enum class ExportFormat(val extension: String, val mime: String) {
-    Slx("slx", SlxCodec.MIME_TYPE), Text("txt", "text/plain"), Markdown("md", "text/markdown"), Docx("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"), Pdf("pdf", "application/pdf")
+private enum class LayoutAction { Margins, Orientation, Size, Columns }
+private enum class ExportFormat(val label: String, val extension: String, val mime: String) {
+    Slxf("Slate document (.slxf)", "slxf", SlxfCodec.MIME_TYPE),
+    Slx("Slate note (.slx)", "slx", SlxCodec.MIME_TYPE),
+    Text("Text", "txt", "text/plain"),
+    Markdown("Markdown", "md", "text/markdown"),
+    Docx("DOCX", "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+    Pdf("PDF", "pdf", "application/pdf"),
+}
+private enum class TemplateKind(val title: String, val description: String, val content: String) {
+    Report("Report", "Structured sections", "Executive summary\n\nStart writing your summary here.\n\nBackground\n\nAdd the context for your report.\n\nFindings\n\nDescribe your findings."),
+    Letter("Letter", "Professional correspondence", "Date\n\nRecipient name\nRecipient address\n\nDear recipient,\n\nStart your letter here.\n\nSincerely,\nYour name"),
+    Resume("Resume", "Clear, modern résumé", "YOUR NAME\nRole or specialty\n\nPROFILE\nWrite a short professional summary.\n\nEXPERIENCE\nRole — Organization\nAdd accomplishments and responsibilities.\n\nEDUCATION\nQualification — Institution"),
 }
 private data class ExportRequest(val document: Document, val format: ExportFormat)
-private sealed interface UpdateUiState {
-    data object Hidden : UpdateUiState
-    data object Checking : UpdateUiState
-    data object Downloading : UpdateUiState
-    data class Available(val update: SlateUpdate) : UpdateUiState
-    data class Message(val title: String, val message: String) : UpdateUiState
-}
 
 @Composable
 fun SlateApp(viewModel: SlateViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
-    val documents = uiState.documents
     var selectedId by remember { mutableStateOf<String?>(null) }
-    var destination by remember { mutableStateOf(CompactDestination.Library) }
     var pendingExport by remember { mutableStateOf<ExportRequest?>(null) }
-    var updateUiState by remember { mutableStateOf<UpdateUiState>(UpdateUiState.Hidden) }
-    var pendingInstallPermission by remember { mutableStateOf<SlateUpdate?>(null) }
+    var pendingImageUri by remember { mutableStateOf<String?>(null) }
+    var pendingUpdate by remember { mutableStateOf<SlateUpdate?>(null) }
+    val selected = uiState.documents.firstOrNull { it.id == selectedId }
 
     fun downloadUpdate(update: SlateUpdate) {
-        updateUiState = UpdateUiState.Downloading
         scope.launch {
             runCatching {
                 val apk = SlateUpdater.download(context, update)
                 SlateUpdater.launchInstaller(context, apk)
-            }
-                .onSuccess {
-                    updateUiState = UpdateUiState.Hidden
-                }
-                .onFailure { error ->
-                    updateUiState = UpdateUiState.Message(
-                        title = "Update failed",
-                        message = error.message ?: "Slate could not download the update.",
-                    )
-                }
+            }.onFailure { Toast.makeText(context, it.message ?: "Update failed", Toast.LENGTH_LONG).show() }
         }
     }
 
     val installPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        val update = pendingInstallPermission
-        pendingInstallPermission = null
-        if (update != null && SlateUpdater.canRequestInstall(context)) {
-            downloadUpdate(update)
-        } else if (update != null) {
-            updateUiState = UpdateUiState.Message(
-                title = "Permission required",
-                message = "Allow Slate to install updates, then try again.",
-            )
-        }
+        val update = pendingUpdate
+        pendingUpdate = null
+        if (update != null && SlateUpdater.canRequestInstall(context)) downloadUpdate(update)
+        else if (update != null) Toast.makeText(context, "Allow Slate to install updates, then try again.", Toast.LENGTH_LONG).show()
     }
 
     fun installUpdate(update: SlateUpdate) {
-        if (SlateUpdater.canRequestInstall(context)) {
-            downloadUpdate(update)
-        } else {
-            pendingInstallPermission = update
+        if (SlateUpdater.canRequestInstall(context)) downloadUpdate(update)
+        else {
+            pendingUpdate = update
             installPermissionLauncher.launch(SlateUpdater.installPermissionIntent(context))
-        }
-    }
-
-    fun checkForUpdates() {
-        updateUiState = UpdateUiState.Checking
-        scope.launch {
-            runCatching { SlateUpdater.checkForUpdate(context) }
-                .onSuccess { update ->
-                    updateUiState = if (update == null) {
-                        UpdateUiState.Message("Slate Notes is up to date", "No newer published Slate Notes build is available.")
-                    } else {
-                        UpdateUiState.Available(update)
-                    }
-                }
-                .onFailure { error ->
-                    updateUiState = UpdateUiState.Message(
-                        title = "Unable to check",
-                        message = error.message ?: "Slate could not contact GitHub.",
-                    )
-                }
         }
     }
 
@@ -212,20 +211,19 @@ fun SlateApp(viewModel: SlateViewModel) {
                     val title = name.substringBeforeLast('.').ifBlank { "Imported document" }
                     val imported = when (name.substringAfterLast('.', "").lowercase()) {
                         "slx" -> DocumentFormats.importSlx(bytes)
+                        "slxf" -> DocumentFormats.importSlxf(bytes)
                         "md", "markdown" -> DocumentFormats.importMarkdown(bytes, title)
                         "docx" -> DocumentFormats.importDocx(bytes, title)
                         else -> DocumentFormats.importText(bytes, title)
                     }
-                    materializeSlxAssets(context, imported)
+                    materializeImportedImages(context, imported)
                 }
             }.onSuccess { imported ->
                 selectedId = viewModel.importDocument(imported).id
-                destination = CompactDestination.Editor
                 if (imported.warnings.isNotEmpty()) Toast.makeText(context, imported.warnings.joinToString(" "), Toast.LENGTH_LONG).show()
             }.onFailure { Toast.makeText(context, it.message ?: "Import failed", Toast.LENGTH_LONG).show() }
         }
     }
-
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val request = pendingExport
         val uri = result.data?.data
@@ -235,13 +233,34 @@ fun SlateApp(viewModel: SlateViewModel) {
                 withContext(Dispatchers.IO) {
                     val bytes = when (request.format) {
                         ExportFormat.Slx -> {
-                            val (portableDocument, assets) = collectSlxAssets(context, request.document)
+                            val (portableDocument, assets) = collectSharedAssets(context, request.document)
                             DocumentFormats.exportSlx(portableDocument, assets)
+                        }
+                        ExportFormat.Slxf -> {
+                            val assets = collectForgeAssets(context, request.document)
+                            DocumentFormats.exportSlxf(request.document, assets)
                         }
                         ExportFormat.Text -> DocumentFormats.exportText(request.document.body)
                         ExportFormat.Markdown -> DocumentFormats.exportMarkdown(request.document.body)
-                        ExportFormat.Docx -> DocumentFormats.exportDocx(request.document.title, request.document.body)
-                        ExportFormat.Pdf -> AndroidDocumentActions.renderPdf(request.document)
+                        ExportFormat.Docx -> {
+                            val r2 = request.document.wordProcessingDocument ?: R2DocumentBridge.fromLegacy(request.document)
+                            val images = r2.sections.flatMap { it.blocks }.filterIsInstance<ImageBlock>().mapNotNull { image ->
+                                runCatching {
+                                    val uri = Uri.parse(image.sourceUri)
+                                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@runCatching null
+                                    val contentType = context.contentResolver.getType(uri) ?: "image/png"
+                                    val extension = when (contentType) {
+                                        "image/jpeg" -> "jpg"
+                                        "image/gif" -> "gif"
+                                        "image/webp" -> "webp"
+                                        else -> "png"
+                                    }
+                                    image.id to DocxEmbeddedImage(bytes, extension, contentType)
+                                }.getOrNull()
+                            }.toMap()
+                            DocumentFormats.exportDocx(r2, images)
+                        }
+                        ExportFormat.Pdf -> AndroidDocumentActions.renderPdf(context, request.document)
                     }
                     context.contentResolver.openOutputStream(uri, "w")?.use { it.write(bytes) }
                         ?: error("Unable to write the selected file.")
@@ -250,179 +269,131 @@ fun SlateApp(viewModel: SlateViewModel) {
                 .onFailure { Toast.makeText(context, it.message ?: "Export failed", Toast.LENGTH_LONG).show() }
         }
     }
+    val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            pendingImageUri = uri.toString()
+        }
+    }
 
     fun export(document: Document, format: ExportFormat) {
         pendingExport = ExportRequest(document, format)
-        val base = DocumentTitlePolicy.displayTitle(document.title, document.body.text)
-            .replace(Regex("[^A-Za-z0-9._-]+"), "-").trim('-').ifBlank { "Slate-document" }
+        val title = DocumentTitlePolicy.displayTitle(document.title, document.body.text)
         exportLauncher.launch(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             type = format.mime
-            putExtra(Intent.EXTRA_TITLE, "$base.${format.extension}")
+            putExtra(Intent.EXTRA_TITLE, "$title.${format.extension}")
             addCategory(Intent.CATEGORY_OPENABLE)
         })
     }
+    fun createBlank() { selectedId = viewModel.createDocument().id }
+    fun createFromTemplate(template: TemplateKind) {
+        val document = viewModel.createDocument().copy(
+            title = template.title,
+            body = RichTextDocument.plain(template.content),
+            experience = DocumentExperience.Forge,
+        )
+        viewModel.updateDocument(document)
+        selectedId = document.id
+    }
 
-    LaunchedEffect(documents) {
-        if (documents.none { it.id == selectedId }) {
-            selectedId = documents.firstOrNull { !it.isArchived && !it.isDeleted }?.id ?: documents.firstOrNull()?.id
+    BackHandler(enabled = selected != null) { selectedId = null }
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        when {
+            uiState.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            selected == null -> StartCenter(
+                documents = uiState.documents,
+                onNew = ::createBlank,
+                onTemplate = ::createFromTemplate,
+                onImport = { importLauncher.launch(arrayOf(SlxCodec.MIME_TYPE, SlxfCodec.MIME_TYPE, "text/plain", "text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
+                onOpen = { selectedId = it.id },
+                onDuplicate = { viewModel.duplicateDocument(it) },
+                onPin = { viewModel.togglePin(it) },
+                onFavorite = { viewModel.toggleFavorite(it) },
+                onArchive = { viewModel.toggleArchive(it) },
+                onTrash = { viewModel.moveToTrash(it) },
+                onRestore = { viewModel.restoreFromTrash(it) },
+                onDelete = viewModel::permanentlyDelete,
+            )
+            else -> WordProcessorWorkspace(
+                document = selected,
+                saving = selected.id in uiState.savingDocumentIds,
+                onClose = { selectedId = null },
+                onChange = viewModel::updateDocument,
+                onNew = ::createBlank,
+                onImport = { importLauncher.launch(arrayOf(SlxCodec.MIME_TYPE, SlxfCodec.MIME_TYPE, "text/plain", "text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
+                pendingImageUri = pendingImageUri,
+                onChooseImage = { imageLauncher.launch(arrayOf("image/*")) },
+                onImageConsumed = { pendingImageUri = null },
+                onExport = { export(selected, it) },
+                onShare = { AndroidDocumentActions.share(context, selected) },
+                onPrint = { AndroidDocumentActions.print(context, selected) },
+                onCheckUpdates = {
+                    scope.launch {
+                        runCatching { SlateUpdater.checkForUpdate(context) }
+                            .onSuccess { update ->
+                                if (update == null) Toast.makeText(context, "Slate is up to date.", Toast.LENGTH_LONG).show()
+                                else installUpdate(update)
+                            }
+                            .onFailure { Toast.makeText(context, it.message ?: "Unable to check for updates.", Toast.LENGTH_LONG).show() }
+                    }
+                },
+            )
         }
-    }
-
-    if (uiState.loading || documents.isEmpty()) {
-        LoadingSlate()
-        return
-    }
-
-    val selected = documents.firstOrNull { it.id == selectedId }
-        ?: documents.firstOrNull { !it.isArchived && !it.isDeleted }
-        ?: documents.first()
-
-    fun newDocument() {
-        selectedId = viewModel.createDocument().id
-    }
-
-    fun selectAfterRemoval(documentId: String) {
-        val replacement = documents.firstOrNull { it.id != documentId && !it.isArchived && !it.isDeleted }
-        selectedId = replacement?.id ?: viewModel.createDocument().id
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-    ) {
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing),
-        ) {
-            val expanded = maxWidth >= 840.dp
-            BackHandler(enabled = !expanded && destination == CompactDestination.Editor) {
-                destination = CompactDestination.Library
-            }
-            if (expanded) {
-                Row(Modifier.fillMaxSize()) {
-                    DocumentLibrary(
-                        documents = documents,
-                        selectedId = selected.id,
-                        onDocumentSelected = { selectedId = it.id },
-                        onNewDocument = { newDocument() },
-                        onImport = { importLauncher.launch(arrayOf(SlxCodec.MIME_TYPE, "text/plain", "text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
-                        modifier = Modifier.width(360.dp).fillMaxHeight(),
-                    )
-                    Editor(
-                        document = selected,
-                        saving = selected.id in uiState.savingDocumentIds,
-                        onDocumentChange = viewModel::updateDocument,
-                        onDuplicate = { selectedId = viewModel.duplicateDocument(it).id },
-                        onTogglePin = { viewModel.togglePin(it) },
-                        onArchive = {
-                            val changed = viewModel.toggleArchive(it)
-                            if (changed.isArchived) selectAfterRemoval(it.id) else selectedId = changed.id
-                        },
-                        onDelete = {
-                            viewModel.moveToTrash(it)
-                            selectAfterRemoval(it.id)
-                        },
-                        onToggleFavorite = { viewModel.toggleFavorite(it) },
-                        onOrganize = { document, folder, tags -> viewModel.updateOrganization(document, folder, tags) },
-                        onRestore = { viewModel.restoreFromTrash(it) },
-                        onPermanentlyDelete = { viewModel.permanentlyDelete(it); selectAfterRemoval(it.id) },
-                        onLoadHistory = viewModel::loadHistory,
-                        history = uiState.history[selected.id].orEmpty(),
-                        onRestoreVersion = { version -> viewModel.restoreVersion(selected, version) },
-                        onExport = { format -> export(selected, format) },
-                        onCheckForUpdates = ::checkForUpdates,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            } else if (destination == CompactDestination.Library) {
-                DocumentLibrary(
-                    documents = documents,
-                    selectedId = selected.id,
-                    onDocumentSelected = {
-                        selectedId = it.id
-                        destination = CompactDestination.Editor
-                    },
-                    onNewDocument = {
-                        newDocument()
-                        destination = CompactDestination.Editor
-                    },
-                    onImport = { importLauncher.launch(arrayOf(SlxCodec.MIME_TYPE, "text/plain", "text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Editor(
-                    document = selected,
-                    saving = selected.id in uiState.savingDocumentIds,
-                    onDocumentChange = viewModel::updateDocument,
-                    onDuplicate = { selectedId = viewModel.duplicateDocument(it).id },
-                    onTogglePin = { viewModel.togglePin(it) },
-                    onArchive = {
-                        val changed = viewModel.toggleArchive(it)
-                        if (changed.isArchived) selectAfterRemoval(it.id) else selectedId = changed.id
-                        destination = CompactDestination.Library
-                    },
-                    onDelete = {
-                        viewModel.moveToTrash(it)
-                        selectAfterRemoval(it.id)
-                        destination = CompactDestination.Library
-                    },
-                    onToggleFavorite = { viewModel.toggleFavorite(it) },
-                    onOrganize = { document, folder, tags -> viewModel.updateOrganization(document, folder, tags) },
-                    onRestore = { viewModel.restoreFromTrash(it) },
-                    onPermanentlyDelete = { viewModel.permanentlyDelete(it); selectAfterRemoval(it.id) },
-                    onLoadHistory = viewModel::loadHistory,
-                    history = uiState.history[selected.id].orEmpty(),
-                    onRestoreVersion = { version -> viewModel.restoreVersion(selected, version) },
-                    onExport = { format -> export(selected, format) },
-                    onCheckForUpdates = ::checkForUpdates,
-                    onBack = { destination = CompactDestination.Library },
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
-        }
-    }
-
-    when (val state = updateUiState) {
-        UpdateUiState.Hidden -> Unit
-        UpdateUiState.Checking -> AlertDialog(
-            onDismissRequest = {},
-            title = { Text("Checking for updates") },
-            text = { Text("Slate is checking the official GitHub release channel.") },
-            confirmButton = {},
-        )
-        UpdateUiState.Downloading -> AlertDialog(
-            onDismissRequest = {},
-            title = { Text("Downloading update") },
-            text = { Text("The APK will be verified before Android opens the installer.") },
-            confirmButton = {},
-        )
-        is UpdateUiState.Available -> AlertDialog(
-            onDismissRequest = { updateUiState = UpdateUiState.Hidden },
-            title = { Text("Slate ${state.update.versionName} update") },
-            text = { Text("Download the verified update and install it over this copy? Your documents stay on this device.") },
-            confirmButton = {
-                TextButton(onClick = { installUpdate(state.update) }) { Text("Update") }
-            },
-            dismissButton = {
-                TextButton(onClick = { updateUiState = UpdateUiState.Hidden }) { Text("Later") }
-            },
-        )
-        is UpdateUiState.Message -> AlertDialog(
-            onDismissRequest = { updateUiState = UpdateUiState.Hidden },
-            title = { Text(state.title) },
-            text = { Text(state.message) },
-            confirmButton = {
-                TextButton(onClick = { updateUiState = UpdateUiState.Hidden }) { Text("OK") }
-            },
-        )
     }
 }
 
-private fun collectSlxAssets(context: android.content.Context, document: Document): Pair<Document, List<SlxAsset>> {
+private fun materializeImportedImages(context: android.content.Context, imported: com.iiankehn.slate.io.ImportedDocument): com.iiankehn.slate.io.ImportedDocument {
+    if (imported.embeddedImages.isEmpty() && imported.slxAssets.isEmpty()) return imported
+    val directory = File(context.filesDir, "imported-slate-media").apply { mkdirs() }
+    val forgeUris = imported.embeddedImages.associate { image ->
+        val extension = image.extension.takeIf { it.matches(Regex("[a-zA-Z0-9]{1,8}")) } ?: "bin"
+        val file = File(directory, "${image.blockId}-${image.bytes.contentHashCode()}.$extension")
+        file.outputStream().use { it.write(image.bytes) }
+        image.blockId to Uri.fromFile(file).toString()
+    }
+    val sharedUris = imported.slxAssets.associate { asset ->
+        val extension = asset.extension.takeIf { it.matches(Regex("[a-zA-Z0-9]{1,8}")) } ?: "bin"
+        val file = File(directory, "${asset.id}-${asset.bytes.contentHashCode()}.$extension")
+        file.outputStream().use { it.write(asset.bytes) }
+        asset.id to Uri.fromFile(file).toString()
+    }
+    val body = imported.body.copy(ranges = imported.body.ranges.map { range ->
+        val assetId = range.data?.removePrefix("asset:")?.takeIf { range.data?.startsWith("asset:") == true }
+        if (assetId != null && assetId in sharedUris) range.copy(data = sharedUris.getValue(assetId)) else range
+    }).normalized()
+    val document = imported.wordProcessingDocument?.let { r2 ->
+        r2.copy(sections = r2.sections.map { section ->
+            section.copy(blocks = section.blocks.map { block ->
+                if (block is ImageBlock && block.id in forgeUris) block.copy(sourceUri = forgeUris.getValue(block.id)) else block
+            })
+        })
+    }
+    return imported.copy(body = body, wordProcessingDocument = document, embeddedImages = emptyList(), slxAssets = emptyList())
+}
+
+private fun collectForgeAssets(context: android.content.Context, document: Document): Map<String, SlxAsset> {
+    val forge = document.wordProcessingDocument ?: R2DocumentBridge.fromLegacy(document)
+    return forge.sections.flatMap { it.blocks }.filterIsInstance<ImageBlock>().mapNotNull { image ->
+        runCatching {
+            val uri = Uri.parse(image.sourceUri)
+            val bytes = if (uri.scheme == "file") File(requireNotNull(uri.path)).readBytes()
+            else context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("Unable to read image")
+            val mime = context.contentResolver.getType(uri) ?: when (File(uri.path.orEmpty()).extension.lowercase()) {
+                "jpg", "jpeg" -> "image/jpeg"
+                "gif" -> "image/gif"
+                "webp" -> "image/webp"
+                else -> "image/png"
+            }
+            val extension = when (mime) { "image/jpeg" -> "jpg"; "image/gif" -> "gif"; "image/webp" -> "webp"; else -> "png" }
+            image.id to SlxAsset(image.id, extension, mime, bytes)
+        }.getOrNull()
+    }.toMap()
+}
+
+private fun collectSharedAssets(context: android.content.Context, document: Document): Pair<Document, List<SlxAsset>> {
+    val sharedBody = document.wordProcessingDocument?.let(R2DocumentBridge::toLegacyBody) ?: document.body
     val assets = mutableListOf<SlxAsset>()
-    val ranges = document.body.ranges.mapIndexed { index, range ->
+    val ranges = sharedBody.ranges.mapIndexed { index, range ->
         if (range.style != RichTextStyle.Image || range.data.isNullOrBlank()) return@mapIndexed range
         runCatching {
             val uri = Uri.parse(range.data)
@@ -432,130 +403,167 @@ private fun collectSlxAssets(context: android.content.Context, document: Documen
                 "jpg", "jpeg" -> "image/jpeg"; "gif" -> "image/gif"; "webp" -> "image/webp"; else -> "image/png"
             }
             val extension = when (mime) { "image/jpeg" -> "jpg"; "image/gif" -> "gif"; "image/webp" -> "webp"; else -> "png" }
-            val id = "image-$index"
-            assets += SlxAsset(id, extension, mime, bytes)
-            range.copy(data = "asset:$id")
+            val id = "image-$index"; assets += SlxAsset(id, extension, mime, bytes); range.copy(data = "asset:$id")
         }.getOrElse { range }
     }
-    return document.copy(body = document.body.copy(ranges = ranges).normalized()) to assets
-}
-
-private fun materializeSlxAssets(context: android.content.Context, imported: com.iiankehn.slate.io.ImportedDocument): com.iiankehn.slate.io.ImportedDocument {
-    if (imported.slxAssets.isEmpty()) return imported
-    val directory = File(context.filesDir, "imported-slate-media").apply { mkdirs() }
-    val uris = imported.slxAssets.associate { asset ->
-        val extension = asset.extension.takeIf { it.matches(Regex("[A-Za-z0-9]{1,8}")) } ?: "bin"
-        val file = File(directory, "${asset.id}-${asset.bytes.contentHashCode()}.$extension")
-        file.outputStream().use { it.write(asset.bytes) }
-        asset.id to Uri.fromFile(file).toString()
-    }
-    val body = imported.body.copy(ranges = imported.body.ranges.map { range ->
-        val id = range.data?.takeIf { it.startsWith("asset:") }?.removePrefix("asset:")
-        if (id != null && id in uris) range.copy(data = uris.getValue(id)) else range
-    }).normalized()
-    return imported.copy(body = body, slxAssets = emptyList())
+    return document.copy(body = sharedBody.copy(ranges = ranges).normalized()) to assets
 }
 
 @Composable
-private fun LoadingSlate() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Midnight),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text("Loading Slate…", color = SlateTextMuted)
-    }
-}
-
-@Composable
-private fun DocumentLibrary(
+private fun StartCenter(
     documents: List<Document>,
-    selectedId: String,
-    onDocumentSelected: (Document) -> Unit,
-    onNewDocument: () -> Unit,
+    onNew: () -> Unit,
+    onTemplate: (TemplateKind) -> Unit,
     onImport: () -> Unit,
-    modifier: Modifier = Modifier,
+    onOpen: (Document) -> Unit,
+    onDuplicate: (Document) -> Unit,
+    onPin: (Document) -> Unit,
+    onFavorite: (Document) -> Unit,
+    onArchive: (Document) -> Unit,
+    onTrash: (Document) -> Unit,
+    onRestore: (Document) -> Unit,
+    onDelete: (Document) -> Unit,
 ) {
-    var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(LibraryFilter.Documents) }
+    var query by remember { mutableStateOf("") }
     val visibleDocuments = documents.filter { document ->
-        val inFilter = when (filter) {
-            LibraryFilter.Documents -> !document.isArchived && !document.isDeleted
+        val inSection = when (filter) {
+            LibraryFilter.Documents -> !document.isDeleted && !document.isArchived
             LibraryFilter.Favorites -> document.isFavorite && !document.isDeleted
             LibraryFilter.Archive -> document.isArchived && !document.isDeleted
             LibraryFilter.Trash -> document.isDeleted
         }
-        val matches = query.isBlank() || listOf(document.title, document.body.text, document.folder, document.tags.joinToString(" "))
-            .any { it.contains(query, ignoreCase = true) }
-        inFilter && matches
+        val searchable = listOf(document.title, document.body.text, document.folder, document.tags.joinToString(" ")).joinToString(" ")
+        inSection && (query.isBlank() || searchable.contains(query.trim(), ignoreCase = true))
     }
-
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        modifier = modifier,
-    ) {
+    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+        val wide = maxWidth >= 840.dp
         Column(Modifier.fillMaxSize()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(start = 22.dp, end = 18.dp, top = 20.dp, bottom = 16.dp),
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("SLATE R1", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.8.sp)
-                    Text("Documents", style = MaterialTheme.typography.headlineMedium)
+            Surface(color = MaterialTheme.colorScheme.surface) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = if (wide) 40.dp else 20.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Slate", style = MaterialTheme.typography.headlineMedium)
+                        Text("Notes and word processing, in one workspace", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    OutlinedButton(onClick = onImport) { Text("Open document") }
                 }
-                Button(
-                    onClick = onNewDocument,
-                    shape = RoundedCornerShape(14.dp),
-                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 11.dp),
-                ) { Text("＋  New") }
             }
-
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                singleLine = true,
-                placeholder = { Text("Search documents") },
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-            )
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = if (wide) 48.dp else 20.dp, vertical = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                LibraryFilter.entries.forEach { option ->
-                    FilterChip(
-                        selected = filter == option,
-                        onClick = { filter = option },
-                        label = { Text(option.name) },
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Text("Create a document", style = MaterialTheme.typography.titleLarge)
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            NewDocumentCard("New document", "Slate adapts as you write", true, onNew)
+                            TemplateKind.entries.forEach { NewDocumentCard(it.title, it.description, onClick = { onTemplate(it) }) }
+                        }
+                    }
+                }
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            label = { Text("Search Slate") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LibraryFilter.entries.forEach { item ->
+                                OutlinedButton(onClick = { filter = item }) {
+                                    Text(if (filter == item) "• ${item.name}" else item.name)
+                                }
+                            }
+                        }
+                    }
+                }
+                item { Text("Recent documents", style = MaterialTheme.typography.titleLarge) }
+                if (visibleDocuments.isEmpty()) item {
+                    Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(20.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(28.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Your workspace is ready", style = MaterialTheme.typography.titleMedium)
+                            Text("Start writing immediately, choose a template, or open an existing document.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                } else items(visibleDocuments, key = Document::id) { document ->
+                    RecentDocument(
+                        document = document,
+                        onOpen = { onOpen(document) },
+                        onDuplicate = { onDuplicate(document) },
+                        onPin = { onPin(document) },
+                        onFavorite = { onFavorite(document) },
+                        onArchive = { onArchive(document) },
+                        onTrash = { onTrash(document) },
+                        onRestore = { onRestore(document) },
+                        onDelete = { onDelete(document) },
                     )
                 }
-                AssistChip(onClick = onImport, label = { Text("Import") })
             }
+        }
+    }
+}
 
-            Text(
-                "${visibleDocuments.size} on this device",
-                color = SlateTextMuted,
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp),
-            )
+@Composable
+private fun NewDocumentCard(title: String, description: String, primary: Boolean = false, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.width(190.dp).height(150.dp).clickable(onClick = onClick),
+        color = if (primary) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, if (primary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Text(if (primary) "+" else "▤", fontSize = 30.sp, color = MaterialTheme.colorScheme.primary)
+            Column {
+                Text(title, fontWeight = FontWeight.SemiBold)
+                Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
 
-            if (visibleDocuments.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(if (query.isBlank()) "Nothing here yet" else "No matching documents", color = SlateTextMuted)
-                }
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 24.dp),
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    items(visibleDocuments, key = { it.id }) { document ->
-                        DocumentRow(document, selectedId == document.id) { onDocumentSelected(document) }
+@Composable
+private fun RecentDocument(
+    document: Document,
+    onOpen: () -> Unit,
+    onDuplicate: () -> Unit,
+    onPin: () -> Unit,
+    onFavorite: () -> Unit,
+    onArchive: () -> Unit,
+    onTrash: () -> Unit,
+    onRestore: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen),
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(12.dp)) {
+                Text(if (DocumentExperiencePolicy.effective(document) == DocumentExperience.Forge) "FORGE" else "NOTE", modifier = Modifier.padding(horizontal = 11.dp, vertical = 14.dp), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
+                Text(DocumentTitlePolicy.displayTitle(document.title, document.body.text), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(document.body.text.lineSequence().firstOrNull { it.isNotBlank() } ?: "Blank document", maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(document.updatedLabel, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box {
+                TextButton(onClick = { menuExpanded = true }) { Text("•••") }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    if (!document.isDeleted) {
+                        DropdownMenuItem(text = { Text(if (document.isPinned) "Unpin" else "Pin") }, onClick = { menuExpanded = false; onPin() })
+                        DropdownMenuItem(text = { Text(if (document.isFavorite) "Remove favorite" else "Favorite") }, onClick = { menuExpanded = false; onFavorite() })
+                        DropdownMenuItem(text = { Text("Duplicate") }, onClick = { menuExpanded = false; onDuplicate() })
+                        DropdownMenuItem(text = { Text(if (document.isArchived) "Unarchive" else "Archive") }, onClick = { menuExpanded = false; onArchive() })
+                        DropdownMenuItem(text = { Text("Move to Trash") }, onClick = { menuExpanded = false; onTrash() })
+                    } else {
+                        DropdownMenuItem(text = { Text("Restore") }, onClick = { menuExpanded = false; onRestore() })
+                        DropdownMenuItem(text = { Text("Delete permanently") }, onClick = { menuExpanded = false; onDelete() })
                     }
                 }
             }
@@ -564,541 +572,1035 @@ private fun DocumentLibrary(
 }
 
 @Composable
-private fun DocumentRow(
-    document: Document,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-) {
-    Surface(
-        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else SlateSurfaceSoft,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else SlateBorder),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick),
-    ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (document.isPinned && !document.isArchived) {
-                    Box(Modifier.size(7.dp).background(CoreBlue, CircleShape))
-                    Spacer(Modifier.width(8.dp))
-                }
-                Text(
-                    DocumentTitlePolicy.displayTitle(document.title, document.body.text),
-                    color = if (document.isArchived) SlateTextMuted else MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                if (document.isFavorite) Text("★", color = MaterialTheme.colorScheme.primary)
-            }
-            if (document.body.text.isNotBlank()) {
-                Text(
-                    document.body.text.replace('\n', ' ').trim(),
-                    color = SlateTextMuted,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 5.dp),
-                )
-            }
-            Text(
-                buildList {
-                    add(document.updatedLabel)
-                    if (document.folder.isNotBlank()) add(document.folder)
-                    if (document.tags.isNotEmpty()) add(document.tags.joinToString(" · ") { "#$it" })
-                }.joinToString("  •  "),
-                color = SlateTextMuted,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
-    }
-}
-
-private data class EditorSnapshot(
-    val title: String,
-    val body: RichTextDocument,
-)
-
-@Composable
-private fun Editor(
+private fun WordProcessorWorkspace(
     document: Document,
     saving: Boolean,
-    onDocumentChange: (Document) -> Unit,
-    onDuplicate: (Document) -> Unit,
-    onTogglePin: (Document) -> Unit,
-    onArchive: (Document) -> Unit,
-    onDelete: (Document) -> Unit,
-    onToggleFavorite: (Document) -> Unit,
-    onOrganize: (Document, String, Set<String>) -> Unit,
-    onRestore: (Document) -> Unit,
-    onPermanentlyDelete: (Document) -> Unit,
-    onLoadHistory: (String) -> Unit,
-    history: List<Document>,
-    onRestoreVersion: (Document) -> Unit,
+    onClose: () -> Unit,
+    onChange: (Document) -> Unit,
+    onNew: () -> Unit,
+    onImport: () -> Unit,
+    pendingImageUri: String?,
+    onChooseImage: () -> Unit,
+    onImageConsumed: () -> Unit,
     onExport: (ExportFormat) -> Unit,
-    onCheckForUpdates: () -> Unit,
-    modifier: Modifier = Modifier,
-    onBack: (() -> Unit)? = null,
+    onShare: () -> Unit,
+    onPrint: () -> Unit,
+    onCheckUpdates: () -> Unit,
 ) {
-    val context = LocalContext.current
-    val undoStack = remember(document.id) { mutableStateListOf<EditorSnapshot>() }
-    val redoStack = remember(document.id) { mutableStateListOf<EditorSnapshot>() }
-    val titleFocusRequester = remember(document.id) { FocusRequester() }
-    var renameRequest by remember(document.id) { mutableStateOf(0) }
-    var menuExpanded by remember(document.id) { mutableStateOf(false) }
-    var confirmDelete by remember(document.id) { mutableStateOf(false) }
-    var showOrganize by remember(document.id) { mutableStateOf(false) }
-    var showHistory by remember(document.id) { mutableStateOf(false) }
-    var showFind by remember(document.id) { mutableStateOf(false) }
-    var showLink by remember(document.id) { mutableStateOf(false) }
-    var folderDraft by remember(document.id) { mutableStateOf(document.folder) }
-    var tagsDraft by remember(document.id) { mutableStateOf(document.tags.joinToString(", ")) }
-    var findDraft by remember(document.id) { mutableStateOf("") }
-    var linkDraft by remember(document.id) { mutableStateOf("https://") }
-    var bodyValue by remember(document.id) {
-        mutableStateOf(
-            TextFieldValue(
-                annotatedString = annotatedBody(document.body),
-                selection = TextRange(document.body.text.length),
-            ),
-        )
+    var activeTab by remember { mutableStateOf(RibbonTab.Home) }
+    var showNavigation by remember { mutableStateOf(true) }
+    var showInspector by remember { mutableStateOf(true) }
+    var zoom by remember { mutableStateOf(100) }
+    var activePage by remember(document.id) { mutableStateOf(0) }
+    var showHeaderFooterEditor by remember(document.id) { mutableStateOf(false) }
+    var showCustomPageSizeEditor by remember(document.id) { mutableStateOf(false) }
+    val editor = remember(document.id) { FlatTextEditorAdapter(document.wordProcessingDocument ?: R2DocumentBridge.fromLegacy(document)) }
+    var editorValue by remember(document.id) { mutableStateOf(TextFieldValue(annotatedBody(editor.legacyBody(), editor.document))) }
+    var selectedObjectId by remember(document.id) { mutableStateOf<String?>(null) }
+    val focusRequester = remember { FocusRequester() }
+    fun publish(state: com.iiankehn.slate.editing.FlatEditorState) {
+        val body = editor.legacyBody()
+        val selection = TextRange(state.selectionStart, state.selectionEnd)
+        editorValue = TextFieldValue(annotatedBody(body, editor.document), selection.coerceIn(0, body.text.length))
+        selectedObjectId = editor.selectedObjectId
+        onChange(document.copy(
+            body = body,
+            wordProcessingDocument = editor.document.copy(title = document.title),
+            experience = DocumentExperiencePolicy.resolve(document.experience, editor.document),
+        ))
     }
-
-    LaunchedEffect(document.body) {
-        val annotated = annotatedBody(document.body)
-        if (bodyValue.text != document.body.text || bodyValue.annotatedString != annotated) {
-            bodyValue = TextFieldValue(
-                annotatedString = annotated,
-                selection = bodyValue.selection.coerceIn(0, document.body.text.length),
+    fun toggle(style: RichTextStyle) {
+        val range = selectionOrWordRange(editorValue.text, editorValue.selection)
+        val state = when (style) {
+            RichTextStyle.Bold -> editor.toggle(CharacterFormat.Bold, range.start, range.end)
+            RichTextStyle.Italic -> editor.toggle(CharacterFormat.Italic, range.start, range.end)
+            RichTextStyle.Underline, RichTextStyle.Link -> editor.toggle(CharacterFormat.Underline, range.start, range.end)
+            RichTextStyle.HeadingOne -> editor.applyNamedStyle(NamedParagraphStyle.Heading1, range.start, range.end)
+            RichTextStyle.Quote -> editor.applyNamedStyle(NamedParagraphStyle.Quote, range.start, range.end)
+            else -> return
+        }
+        publish(state)
+    }
+    fun insert(text: String) {
+        val selection = editorValue.selection.coerceIn(0, document.body.text.length)
+        val nextText = editorValue.text.replaceRange(selection.min, selection.max, text)
+        publish(editor.replace(nextText, selection.min + text.length, selection.min + text.length))
+        focusRequester.requestFocus()
+    }
+    fun toggleList(kind: ListKind) {
+        val range = selectionOrWordRange(editorValue.text, editorValue.selection)
+        publish(editor.toggleList(kind, range.start, range.end))
+    }
+    fun adjustListLevel(delta: Int) {
+        val range = selectionOrWordRange(editorValue.text, editorValue.selection)
+        publish(editor.adjustListLevel(delta, range.start, range.end))
+    }
+    fun handleTab(outdent: Boolean) {
+        publish(editor.handleTab(editorValue.selection.min, editorValue.selection.max, outdent))
+    }
+    fun updateLayout(action: LayoutAction) {
+        val page = editor.document.sections[editor.activeSectionIndex].page
+        val updated = when (action) {
+            LayoutAction.Margins -> page.copy(margins = if (page.margins.topPoints == 72f) PageMargins(36f, 36f, 36f, 36f) else PageMargins())
+            LayoutAction.Orientation -> page.copy(orientation = if (page.orientation == PageOrientation.Portrait) PageOrientation.Landscape else PageOrientation.Portrait)
+            LayoutAction.Size -> page.copy(
+                size = PageSize.entries[(page.size.ordinal + 1) % PageSize.entries.size],
+                customWidthPoints = null,
+                customHeightPoints = null,
             )
+            LayoutAction.Columns -> page.copy(columns = page.columns % 4 + 1)
+        }
+        publish(editor.updatePageSetup(updated))
+    }
+    LaunchedEffect(pendingImageUri) {
+        pendingImageUri?.let { uri ->
+            publish(editor.insertImage(editorValue.selection.min, editorValue.selection.max, uri, "Imported picture"))
+            onImageConsumed()
         }
     }
 
-    LaunchedEffect(renameRequest) {
-        if (renameRequest > 0) titleFocusRequester.requestFocus()
-    }
-
-    fun commit(changed: Document) {
-        val before = EditorSnapshot(document.title, document.body)
-        val after = EditorSnapshot(changed.title, changed.body)
-        if (before == after) return
-        if (undoStack.size == 100) undoStack.removeAt(0)
-        undoStack += before
-        redoStack.clear()
-        onDocumentChange(changed.copy(updatedLabel = "Just now"))
-    }
-
-    fun applyStyle(style: RichTextStyle, blockStyle: Boolean = false) {
-        val target = if (blockStyle) {
-            paragraphRange(document.body.text, bodyValue.selection)
-        } else {
-            selectionOrWordRange(document.body.text, bodyValue.selection)
-        }
-        if (target.start == target.end) return
-        val body = document.body.toggle(style, target.start, target.end)
-        bodyValue = TextFieldValue(annotatedBody(body), bodyValue.selection)
-        commit(document.copy(body = body))
-    }
-
-    fun applyPrefix(prefix: String) {
-        val (body, selection) = toggleLinePrefix(document.body, bodyValue.selection, prefix)
-        if (body == document.body) return
-        bodyValue = TextFieldValue(annotatedBody(body), selection)
-        commit(document.copy(body = body))
-    }
-
-    fun insertText(text: String, style: RichTextStyle? = null, data: String? = null) {
-        val start = bodyValue.selection.min.coerceIn(0, document.body.text.length)
-        val end = bodyValue.selection.max.coerceIn(start, document.body.text.length)
-        val updatedText = document.body.text.replaceRange(start, end, text)
-        var body = document.body.updateText(updatedText)
-        if (style != null && text.isNotEmpty()) {
-            body = body.copy(ranges = body.ranges + RichTextRange(style, start, start + text.length, data)).normalized()
-        }
-        bodyValue = TextFieldValue(annotatedBody(body), TextRange(start + text.length))
-        commit(document.copy(body = body))
-    }
-
-    val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-            insertText("🖼 Image", RichTextStyle.Image, uri.toString())
-        }
-    }
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Transparent)
-            .imePadding(),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-        ) {
-            if (onBack != null) {
-                IconButton(onClick = onBack) {
-                    Icon(backIcon, contentDescription = "Back")
-                }
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f).padding(start = if (onBack == null) 8.dp else 0.dp),
-            ) {
-                Box(
-                    Modifier
-                        .size(7.dp)
-                        .background(if (saving) MaterialTheme.colorScheme.primary else Color(0xFF63D39B), CircleShape),
+    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()) {
+        val tablet = maxWidth >= 840.dp
+        val desktop = maxWidth >= 1200.dp
+        Column(Modifier.fillMaxSize()) {
+            DocumentTitleBar(document, saving, onClose, onChange)
+            RibbonTabs(activeTab) { activeTab = it }
+            Ribbon(
+                tab = activeTab, compact = !tablet, document = document, selection = editorValue.selection,
+                onToggle = ::toggle, onInsert = ::insert, onNew = onNew, onOpen = onImport,
+                onToggleList = ::toggleList,
+                onAdjustListLevel = ::adjustListLevel,
+                onPageBreak = { publish(editor.insertPageBreak(editorValue.selection.min, editorValue.selection.max)) },
+                onSectionBreak = { start -> publish(editor.insertSectionBreak(editorValue.selection.min, editorValue.selection.max, start)) },
+                onEditHeaderFooter = { showHeaderFooterEditor = true },
+                onInsertTable = { publish(editor.insertTable(editorValue.selection.min, editorValue.selection.max)) },
+                onInsertImage = onChooseImage,
+                onLayout = ::updateLayout,
+                onCustomPageSize = { showCustomPageSizeEditor = true },
+                onExport = onExport, onShare = onShare, onPrint = onPrint, onCheckUpdates = onCheckUpdates,
+                showNavigation = showNavigation, showInspector = showInspector,
+                onToggleNavigation = { showNavigation = !showNavigation }, onToggleInspector = { showInspector = !showInspector },
+                onZoom = { zoom = it },
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(Modifier.weight(1f).fillMaxWidth()) {
+                if (tablet && showNavigation) NavigationPane(
+                    document = document,
+                    activePage = activePage,
+                    onPageSelected = { activePage = it },
+                    modifier = Modifier.width(230.dp).fillMaxHeight(),
                 )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    if (saving) "Saving…" else "Saved locally",
-                    color = SlateTextMuted,
-                    style = MaterialTheme.typography.labelMedium,
+                Column(Modifier.weight(1f).fillMaxHeight().background(CanvasBackground)) {
+                    Ruler(zoom)
+                    DocumentCanvas(
+                        value = editorValue, zoom = zoom, focusRequester = focusRequester,
+                        document = editor.document,
+                        onValueChange = { value ->
+                            publish(editor.replace(value.text, value.selection.start, value.selection.end))
+                        },
+                        onToggle = ::toggle,
+                        onUndo = { publish(editor.undo()) },
+                        onRedo = { publish(editor.redo()) },
+                        onTab = ::handleTab,
+                        onToggleChecklistItem = { id -> publish(editor.toggleChecklistItem(id)) },
+                        onUpdateTableCell = { id, row, column, text -> publish(editor.updateTableCell(id, row, column, text)) },
+                        onResizeTable = { id, rows, columns -> publish(editor.resizeTable(id, rows, columns)) },
+                        onDeleteTableRow = { id, row -> publish(editor.deleteTableRow(id, row)) },
+                        onDeleteTableColumn = { id, column -> publish(editor.deleteTableColumn(id, column)) },
+                        onSetTableHeaderRows = { id, count -> publish(editor.setTableHeaderRows(id, count)) },
+                        onMergeTableCells = { id, row, start, end -> publish(editor.mergeTableCells(id, row, start, end)) },
+                        onUpdateImage = { id, description, width, height, wrapping ->
+                            publish(editor.updateImage(id, description, width, height, wrapping))
+                        },
+                        onMoveImage = { id, x, y -> publish(editor.moveImage(id, x, y)) },
+                        onDeleteObject = { id -> publish(editor.deleteObject(id)) },
+                        selectedObjectId = selectedObjectId,
+                        onSelectObject = { id ->
+                            editor.selectObject(id)
+                            selectedObjectId = editor.selectedObjectId
+                        },
+                        activePage = activePage,
+                        onActivePageChange = { activePage = it },
+                    )
+                }
+                if (desktop && showInspector) InspectorPane(
+                    document = document,
+                    r2 = editor.document,
+                    activeSectionIndex = editor.activeSectionIndex,
+                    onHeaderFooterChange = { header, footer -> publish(editor.updateHeaderFooter(header, footer)) },
+                    modifier = Modifier.width(280.dp).fillMaxHeight(),
                 )
             }
-            Box {
-                IconButton(onClick = { menuExpanded = true }) {
-                    Text("⋮", color = MaterialTheme.colorScheme.onSurface, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                }
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Rename") },
-                        onClick = {
-                            menuExpanded = false
-                            renameRequest += 1
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(if (document.isFavorite) "Remove favorite" else "Favorite") },
-                        onClick = { menuExpanded = false; onToggleFavorite(document) },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Folder & tags") },
-                        onClick = { menuExpanded = false; showOrganize = true },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Version history") },
-                        onClick = { menuExpanded = false; onLoadHistory(document.id); showHistory = true },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Continue in Slate Forge") },
-                        onClick = {
-                            menuExpanded = false
-                            runCatching {
-                                val (portableDocument, assets) = collectSlxAssets(context, document)
-                                AndroidDocumentActions.continueInForge(context, portableDocument, assets)
-                            }
-                                .onFailure { Toast.makeText(context, "Slate Forge is not installed.", Toast.LENGTH_LONG).show() }
-                        },
-                    )
-                    DropdownMenuItem(text = { Text("Export Slate document (.slx)") }, onClick = { menuExpanded = false; onExport(ExportFormat.Slx) })
-                    DropdownMenuItem(text = { Text("Export text") }, onClick = { menuExpanded = false; onExport(ExportFormat.Text) })
-                    DropdownMenuItem(text = { Text("Export Markdown") }, onClick = { menuExpanded = false; onExport(ExportFormat.Markdown) })
-                    DropdownMenuItem(text = { Text("Export DOCX") }, onClick = { menuExpanded = false; onExport(ExportFormat.Docx) })
-                    DropdownMenuItem(text = { Text("Export PDF") }, onClick = { menuExpanded = false; onExport(ExportFormat.Pdf) })
-                    DropdownMenuItem(text = { Text("Share") }, onClick = { menuExpanded = false; AndroidDocumentActions.share(context, document) })
-                    DropdownMenuItem(text = { Text("Print") }, onClick = { menuExpanded = false; AndroidDocumentActions.print(context, document) })
-                    DropdownMenuItem(text = { Text("Check for updates") }, onClick = { menuExpanded = false; onCheckForUpdates() })
-                    DropdownMenuItem(
-                        text = { Text("Duplicate") },
-                        onClick = {
-                            menuExpanded = false
-                            onDuplicate(document)
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(if (document.isPinned) "Unpin" else "Pin") },
-                        onClick = {
-                            menuExpanded = false
-                            onTogglePin(document)
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(if (document.isArchived) "Restore" else "Archive") },
-                        onClick = {
-                            menuExpanded = false
-                            onArchive(document)
-                        },
-                    )
-                    if (document.isDeleted) {
-                        DropdownMenuItem(text = { Text("Restore from trash") }, onClick = { menuExpanded = false; onRestore(document) })
-                        DropdownMenuItem(text = { Text("Delete permanently", color = MaterialTheme.colorScheme.error) }, onClick = { menuExpanded = false; onPermanentlyDelete(document) })
-                    } else {
-                        DropdownMenuItem(text = { Text("Move to trash", color = MaterialTheme.colorScheme.error) }, onClick = { menuExpanded = false; confirmDelete = true })
-                    }
-                }
-            }
-        }
-
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            border = BorderStroke(1.dp, SlateBorder),
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-        ) {
-            Column(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 10.dp)) {
-                BasicTextField(
-                    value = document.title,
-                    onValueChange = { commit(document.copy(title = it)) },
-                    textStyle = MaterialTheme.typography.headlineMedium.copy(color = MaterialTheme.colorScheme.onSurface),
-                    cursorBrush = SolidColor(CoreBlue),
-                    decorationBox = { field ->
-                        Box {
-                            if (document.title.isBlank()) Text("Untitled", color = SlateTextMuted, style = MaterialTheme.typography.headlineMedium)
-                            field()
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().focusRequester(titleFocusRequester),
-                )
-
-                HorizontalDivider(
-                    color = SlateBorder,
-                    modifier = Modifier.padding(top = 14.dp),
-                )
-
-                BasicTextField(
-                    value = bodyValue,
-                    onValueChange = { changed ->
-                        val body = document.body.updateText(changed.text)
-                        bodyValue = TextFieldValue(annotatedBody(body), changed.selection)
-                        commit(document.copy(body = body))
-                    },
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-                    cursorBrush = SolidColor(CoreBlue),
-                    decorationBox = { field ->
-                        Box(Modifier.padding(top = 16.dp, bottom = 8.dp)) {
-                            if (document.body.text.isBlank()) Text("Start writing…", color = SlateTextMuted, fontSize = 18.sp)
-                            field()
-                        }
-                    },
-                    modifier = Modifier.weight(1f).fillMaxWidth().onPreviewKeyEvent { event ->
-                        if (event.type != KeyEventType.KeyDown || !event.isCtrlPressed) return@onPreviewKeyEvent false
-                        when (event.key) {
-                            Key.B -> { applyStyle(RichTextStyle.Bold); true }
-                            Key.I -> { applyStyle(RichTextStyle.Italic); true }
-                            Key.U -> { applyStyle(RichTextStyle.Underline); true }
-                            Key.F -> { showFind = true; true }
-                            Key.Z -> {
-                                if (undoStack.isNotEmpty()) {
-                                    val previous = undoStack.removeAt(undoStack.lastIndex)
-                                    redoStack += EditorSnapshot(document.title, document.body)
-                                    onDocumentChange(document.copy(title = previous.title, body = previous.body))
-                                }
-                                true
-                            }
-                            Key.Y -> {
-                                if (redoStack.isNotEmpty()) {
-                                    val next = redoStack.removeAt(redoStack.lastIndex)
-                                    undoStack += EditorSnapshot(document.title, document.body)
-                                    onDocumentChange(document.copy(title = next.title, body = next.body))
-                                }
-                                true
-                            }
-                            else -> false
-                        }
-                    },
-                )
-                document.body.ranges.filter { it.style == RichTextStyle.Image && it.data != null }.take(1).forEach { range ->
-                    ImagePreview(range.data!!)
-                }
-
-                Surface(
-                    color = SlateSurfaceSoft,
-                    shape = RoundedCornerShape(18.dp),
-                    border = BorderStroke(1.dp, SlateBorder),
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(7.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                    ) {
-                        FormattingButton("B", active = document.body.hasStyle(RichTextStyle.Bold, bodyValue.selection.start, bodyValue.selection.end)) { applyStyle(RichTextStyle.Bold) }
-                        FormattingButton("I", active = document.body.hasStyle(RichTextStyle.Italic, bodyValue.selection.start, bodyValue.selection.end)) { applyStyle(RichTextStyle.Italic) }
-                        FormattingButton("U", active = document.body.hasStyle(RichTextStyle.Underline, bodyValue.selection.start, bodyValue.selection.end)) { applyStyle(RichTextStyle.Underline) }
-                        FormattingButton("H1", active = document.body.hasStyle(RichTextStyle.HeadingOne, bodyValue.selection.start, bodyValue.selection.end)) { applyStyle(RichTextStyle.HeadingOne, blockStyle = true) }
-                        FormattingButton("List") { applyPrefix("• ") }
-                        FormattingButton("Check") { applyPrefix("☐ ") }
-                        FormattingButton("Quote") { applyStyle(RichTextStyle.Quote, blockStyle = true) }
-                        FormattingButton("Link") { showLink = true }
-                        FormattingButton("Image") { imageLauncher.launch(arrayOf("image/*")) }
-                        FormattingButton("Table") { insertText("| Column 1 | Column 2 |\n| --- | --- |\n| Value | Value |", RichTextStyle.Table) }
-                        FormattingButton("Find") { showFind = true }
-                        FormattingButton("↶", enabled = undoStack.isNotEmpty()) {
-                            val previous = undoStack.removeAt(undoStack.lastIndex)
-                            redoStack += EditorSnapshot(document.title, document.body)
-                            onDocumentChange(document.copy(title = previous.title, body = previous.body, updatedLabel = "Just now"))
-                        }
-                        FormattingButton("↷", enabled = redoStack.isNotEmpty()) {
-                            val next = redoStack.removeAt(redoStack.lastIndex)
-                            undoStack += EditorSnapshot(document.title, document.body)
-                            onDocumentChange(document.copy(title = next.title, body = next.body, updatedLabel = "Just now"))
-                        }
-                    }
-                }
-            }
+            StatusBar(document, saving, zoom, activePage) { zoom = it }
         }
     }
-
-    if (confirmDelete) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete document?") },
-            text = { Text("The document will move to Trash and can be restored later.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmDelete = false
-                        onDelete(document)
-                    },
-                ) { Text("Move to Trash", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+    if (showHeaderFooterEditor) {
+        val section = editor.document.sections[editor.activeSectionIndex]
+        HeaderFooterEditorDialog(
+            initialHeader = sectionMarginText(section.header),
+            initialFooter = sectionMarginText(section.footer),
+            onDismiss = { showHeaderFooterEditor = false },
+            onSave = { header, footer ->
+                publish(editor.updateHeaderFooter(header, footer))
+                showHeaderFooterEditor = false
             },
         )
     }
-
-    if (showOrganize) {
-        AlertDialog(
-            onDismissRequest = { showOrganize = false },
-            title = { Text("Folder and tags") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    BasicTextField(folderDraft, { folderDraft = it }, textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface), decorationBox = { field -> FieldShell("Folder", folderDraft, field) })
-                    BasicTextField(tagsDraft, { tagsDraft = it }, textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface), decorationBox = { field -> FieldShell("Tags, separated by commas", tagsDraft, field) })
-                }
+    if (showCustomPageSizeEditor) {
+        val page = editor.document.sections[editor.activeSectionIndex].page
+        CustomPageSizeDialog(
+            initialWidth = page.widthPoints,
+            initialHeight = page.heightPoints,
+            onDismiss = { showCustomPageSizeEditor = false },
+            onSave = { width, height ->
+                publish(editor.updatePageSetup(page.copy(
+                    orientation = PageOrientation.Portrait,
+                    customWidthPoints = width,
+                    customHeightPoints = height,
+                )))
+                showCustomPageSizeEditor = false
             },
-            confirmButton = { TextButton(onClick = { onOrganize(document, folderDraft, tagsDraft.split(',').map(String::trim).filter(String::isNotEmpty).toSet()); showOrganize = false }) { Text("Save") } },
-            dismissButton = { TextButton(onClick = { showOrganize = false }) { Text("Cancel") } },
-        )
-    }
-
-    if (showLink) {
-        AlertDialog(
-            onDismissRequest = { showLink = false },
-            title = { Text("Insert link") },
-            text = { BasicTextField(linkDraft, { linkDraft = it }, textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface), decorationBox = { field -> FieldShell("https://example.com", linkDraft, field) }) },
-            confirmButton = { TextButton(onClick = {
-                val selection = selectionOrWordRange(document.body.text, bodyValue.selection)
-                val label = document.body.text.substring(selection.min, selection.max).ifBlank { linkDraft }
-                bodyValue = bodyValue.copy(selection = selection)
-                insertText(label, RichTextStyle.Link, linkDraft)
-                showLink = false
-            }) { Text("Insert") } },
-            dismissButton = { TextButton(onClick = { showLink = false }) { Text("Cancel") } },
-        )
-    }
-
-    if (showFind) {
-        AlertDialog(
-            onDismissRequest = { showFind = false },
-            title = { Text("Find in document") },
-            text = { BasicTextField(findDraft, { findDraft = it }, textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface), decorationBox = { field -> FieldShell("Search", findDraft, field) }) },
-            confirmButton = { TextButton(onClick = {
-                val start = document.body.text.indexOf(findDraft, bodyValue.selection.max.coerceAtMost(document.body.text.length), ignoreCase = true)
-                    .takeIf { it >= 0 } ?: document.body.text.indexOf(findDraft, ignoreCase = true)
-                if (start >= 0 && findDraft.isNotEmpty()) bodyValue = bodyValue.copy(selection = TextRange(start, start + findDraft.length))
-                else Toast.makeText(context, "No match", Toast.LENGTH_SHORT).show()
-            }) { Text("Find next") } },
-            dismissButton = { TextButton(onClick = { showFind = false }) { Text("Close") } },
-        )
-    }
-
-    if (showHistory) {
-        AlertDialog(
-            onDismissRequest = { showHistory = false },
-            title = { Text("Version history") },
-            text = {
-                LazyColumn {
-                    if (history.isEmpty()) item { Text("Loading history…", color = SlateTextMuted) }
-                    items(history.take(30), key = { it.updatedAtEpochMillis }) { version ->
-                        TextButton(onClick = { onRestoreVersion(version); showHistory = false }) {
-                            Text("Restore ${version.updatedLabel} · ${version.body.text.take(48)}")
-                        }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { showHistory = false }) { Text("Close") } },
         )
     }
 }
 
 @Composable
-private fun ImagePreview(uri: String) {
+private fun DocumentTitleBar(document: Document, saving: Boolean, onClose: () -> Unit, onChange: (Document) -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onClose) { Text("‹ Start") }
+            Text("S", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black, modifier = Modifier.background(MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)).padding(horizontal = 11.dp, vertical = 7.dp))
+            BasicTextField(
+                value = document.title,
+                onValueChange = { onChange(document.copy(title = it)) },
+                singleLine = true,
+                textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                modifier = Modifier.weight(1f).padding(horizontal = 14.dp),
+                decorationBox = { inner -> if (document.title.isBlank()) Text("Untitled document", color = MaterialTheme.colorScheme.onSurfaceVariant) else inner() },
+            )
+            Text(if (saving) "Saving…" else "Saved", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(if (DocumentExperiencePolicy.effective(document) == DocumentExperience.Forge) "Forge" else "Note", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 10.dp))
+        }
+    }
+}
+
+@Composable
+private fun RibbonTabs(active: RibbonTab, onSelect: (RibbonTab) -> Unit) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).background(MaterialTheme.colorScheme.surface)) {
+        RibbonTab.entries.forEach { tab ->
+            val selected = tab == active
+            Column(Modifier.clickable { onSelect(tab) }.padding(horizontal = 18.dp, vertical = 9.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(tab.name, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                if (selected) Spacer(Modifier.padding(top = 4.dp).width(28.dp).height(3.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(3.dp)))
+            }
+        }
+    }
+}
+
+@Composable
+private fun Ribbon(
+    tab: RibbonTab,
+    compact: Boolean,
+    document: Document,
+    selection: TextRange,
+    onToggle: (RichTextStyle) -> Unit,
+    onInsert: (String) -> Unit,
+    onToggleList: (ListKind) -> Unit,
+    onAdjustListLevel: (Int) -> Unit,
+    onPageBreak: () -> Unit,
+    onSectionBreak: (SectionStart) -> Unit,
+    onEditHeaderFooter: () -> Unit,
+    onInsertTable: () -> Unit,
+    onInsertImage: () -> Unit,
+    onLayout: (LayoutAction) -> Unit,
+    onCustomPageSize: () -> Unit,
+    onNew: () -> Unit,
+    onOpen: () -> Unit,
+    onExport: (ExportFormat) -> Unit,
+    onShare: () -> Unit,
+    onPrint: () -> Unit,
+    onCheckUpdates: () -> Unit,
+    showNavigation: Boolean,
+    showInspector: Boolean,
+    onToggleNavigation: () -> Unit,
+    onToggleInspector: () -> Unit,
+    onZoom: (Int) -> Unit,
+) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+        Row(Modifier.fillMaxWidth().height(if (compact) 70.dp else 88.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            when (tab) {
+                RibbonTab.File -> {
+                    RibbonGroup("Document") { RibbonCommand("New", onNew); RibbonCommand("Open", onOpen) }
+                    RibbonGroup("Export") { ExportMenu(onExport); RibbonCommand("Share", onShare); RibbonCommand("Print", onPrint) }
+                    RibbonGroup("Slate") { RibbonCommand("Updates", onCheckUpdates) }
+                }
+                RibbonTab.Home -> {
+                    RibbonGroup("Font") {
+                        RibbonCommand("B", { onToggle(RichTextStyle.Bold) }, document.body.hasStyle(RichTextStyle.Bold, selection.min, selection.max), FontWeight.Black)
+                        RibbonCommand("I", { onToggle(RichTextStyle.Italic) }, document.body.hasStyle(RichTextStyle.Italic, selection.min, selection.max), italic = true)
+                        RibbonCommand("U", { onToggle(RichTextStyle.Underline) }, document.body.hasStyle(RichTextStyle.Underline, selection.min, selection.max), underline = true)
+                    }
+                    RibbonGroup("Paragraph") {
+                        RibbonCommand("Bullets", { onToggleList(ListKind.Bulleted) })
+                        RibbonCommand("Numbering", { onToggleList(ListKind.Numbered) })
+                        RibbonCommand("Checklist", { onToggleList(ListKind.Checklist) })
+                        RibbonCommand("Outdent", { onAdjustListLevel(-1) })
+                        RibbonCommand("Indent", { onAdjustListLevel(1) })
+                        RibbonCommand("Quote", { onToggle(RichTextStyle.Quote) })
+                    }
+                    RibbonGroup("Styles") { RibbonCommand("Title", { onToggle(RichTextStyle.HeadingOne) }); RibbonCommand("Normal", {}) }
+                }
+                RibbonTab.Insert -> {
+                    RibbonGroup("Pages") { RibbonCommand("Page break", onPageBreak); SectionBreakMenu(onSectionBreak) }
+                    RibbonGroup("Content") { RibbonCommand("Table", onInsertTable); RibbonCommand("Picture", onInsertImage); RibbonCommand("Link", { onToggle(RichTextStyle.Link) }) }
+                    RibbonGroup("Page elements") { RibbonCommand("Header / footer", onEditHeaderFooter) }
+                }
+                RibbonTab.Layout -> RibbonGroup("Page setup") { RibbonCommand("Margins", { onLayout(LayoutAction.Margins) }); RibbonCommand("Orientation", { onLayout(LayoutAction.Orientation) }); RibbonCommand("Size", { onLayout(LayoutAction.Size) }); RibbonCommand("Custom size", onCustomPageSize); RibbonCommand("Columns", { onLayout(LayoutAction.Columns) }) }
+                RibbonTab.Review -> {
+                    RibbonGroup("Proofing") { RibbonCommand("Spelling", {}); RibbonCommand("Word count", {}) }
+                    RibbonGroup("Changes") { RibbonCommand("Comment", { onInsert("[Comment] ") }); RibbonCommand("Track", {}) }
+                }
+                RibbonTab.View -> {
+                    RibbonGroup("Show") { RibbonCommand("Navigation", onToggleNavigation, showNavigation); RibbonCommand("Inspector", onToggleInspector, showInspector) }
+                    RibbonGroup("Zoom") { RibbonCommand("75%", { onZoom(75) }); RibbonCommand("100%", { onZoom(100) }); RibbonCommand("125%", { onZoom(125) }) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RibbonGroup(label: String, content: @Composable RowScope.() -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), content = content)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 5.dp))
+    }
+    Box(Modifier.fillMaxHeight().width(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
+}
+
+@Composable
+private fun RibbonCommand(label: String, onClick: () -> Unit, active: Boolean = false, weight: FontWeight = FontWeight.Medium, italic: Boolean = false, underline: Boolean = false) {
+    Surface(Modifier.clickable(onClick = onClick), color = if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, shape = RoundedCornerShape(10.dp)) {
+        Text(label, fontWeight = weight, fontStyle = if (italic) FontStyle.Italic else FontStyle.Normal, textDecoration = if (underline) TextDecoration.Underline else null, modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), maxLines = 1)
+    }
+}
+
+@Composable
+private fun ExportMenu(onExport: (ExportFormat) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        RibbonCommand("Export", { open = true })
+        DropdownMenu(open, { open = false }) {
+            ExportFormat.entries.forEach { format -> DropdownMenuItem(text = { Text(format.label) }, onClick = { open = false; onExport(format) }) }
+        }
+    }
+}
+
+@Composable
+private fun SectionBreakMenu(onInsert: (SectionStart) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        RibbonCommand("Section break", { open = true })
+        DropdownMenu(open, { open = false }) {
+            listOf(
+                SectionStart.Continuous to "Continuous",
+                SectionStart.NextPage to "Next page",
+                SectionStart.OddPage to "Odd page",
+                SectionStart.EvenPage to "Even page",
+            ).forEach { (start, label) ->
+                DropdownMenuItem(text = { Text(label) }, onClick = { open = false; onInsert(start) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun NavigationPane(
+    document: Document,
+    activePage: Int,
+    onPageSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val r2 = document.wordProcessingDocument ?: R2DocumentBridge.fromLegacy(document)
+    val layout = remember(r2) { DocumentLayoutEngine().layout(r2) }
+    Surface(modifier, color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
+            Text("Navigation", style = MaterialTheme.typography.titleMedium)
+            Text("HEADINGS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 20.dp, bottom = 8.dp))
+            val headings = document.body.text.lines().filter { it.isNotBlank() }.take(8)
+            if (headings.isEmpty()) Text("Add headings to build an outline.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            headings.forEachIndexed { index, line -> Text(line, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth().padding(vertical = 7.dp), fontWeight = if (index == 0) FontWeight.SemiBold else FontWeight.Normal) }
+            Text("PAGES", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 22.dp, bottom = 8.dp))
+            layout.pages.take(50).forEach { page ->
+                val selected = page.index == activePage
+                Row(
+                    Modifier.fillMaxWidth().clickable { onPageSelected(page.index) }.padding(vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Surface(
+                        Modifier.width(42.dp).aspectRatio(page.setup.widthPoints / page.setup.heightPoints),
+                        color = Paper,
+                        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) CoreBlue else MaterialTheme.colorScheme.outlineVariant),
+                        shadowElevation = 1.dp,
+                    ) {}
+                    Text(
+                        "Page ${page.index + 1}",
+                        modifier = Modifier.padding(start = 10.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InspectorPane(
+    document: Document,
+    r2: WordProcessingDocument,
+    activeSectionIndex: Int,
+    onHeaderFooterChange: (String, String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val section = r2.sections[activeSectionIndex.coerceIn(r2.sections.indices)]
+    val page = section.page
+    val blocks = r2.sections.flatMap { it.blocks }
+    val header = sectionMarginText(section.header)
+    val footer = sectionMarginText(section.footer)
+    Surface(modifier, color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.padding(18.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            Text("Format", style = MaterialTheme.typography.titleMedium)
+            InspectorSection("Text", listOf("Typeface" to "Serif", "Size" to "11 pt", "Color" to "Automatic"))
+            InspectorSection("Paragraph", listOf("Alignment" to "Left", "Line spacing" to "1.15", "After" to "8 pt"))
+            InspectorSection("Document", listOf(
+                "Page" to page.size.name,
+                "Orientation" to page.orientation.name,
+                "Columns" to page.columns.toString(),
+                "Tables" to blocks.count { it is TableBlock }.toString(),
+                "Pictures" to blocks.count { it is ImageBlock }.toString(),
+                "Words" to wordCount(document.body.text).toString(),
+            ))
+            Text("Section ${activeSectionIndex + 1} of ${r2.sections.size}", fontWeight = FontWeight.SemiBold)
+            OutlinedTextField(
+                value = header,
+                onValueChange = { onHeaderFooterChange(it, footer) },
+                label = { Text("Header") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+            )
+            OutlinedTextField(
+                value = footer,
+                onValueChange = { onHeaderFooterChange(header, it) },
+                label = { Text("Footer") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeaderFooterEditorDialog(
+    initialHeader: String,
+    initialFooter: String,
+    onDismiss: () -> Unit,
+    onSave: (String, String) -> Unit,
+) {
+    var header by remember(initialHeader) { mutableStateOf(initialHeader) }
+    var footer by remember(initialFooter) { mutableStateOf(initialFooter) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Header and footer") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(header, { header = it }, label = { Text("Header") }, minLines = 2)
+                OutlinedTextField(footer, { footer = it }, label = { Text("Footer") }, minLines = 2)
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(header, footer) }) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun CustomPageSizeDialog(
+    initialWidth: Float,
+    initialHeight: Float,
+    onDismiss: () -> Unit,
+    onSave: (Float, Float) -> Unit,
+) {
+    var widthInches by remember(initialWidth) { mutableStateOf("%.2f".format(initialWidth / 72f)) }
+    var heightInches by remember(initialHeight) { mutableStateOf("%.2f".format(initialHeight / 72f)) }
+    val widthPoints = widthInches.toFloatOrNull()?.times(72f)
+    val heightPoints = heightInches.toFloatOrNull()?.times(72f)
+    val valid = widthPoints != null && heightPoints != null && widthPoints in 144f..1440f && heightPoints in 144f..1440f
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Custom page size") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Enter dimensions from 2 to 20 inches.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(widthInches, { widthInches = it }, label = { Text("Width (inches)") }, singleLine = true)
+                OutlinedTextField(heightInches, { heightInches = it }, label = { Text("Height (inches)") }, singleLine = true)
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = valid, onClick = { onSave(requireNotNull(widthPoints), requireNotNull(heightPoints)) }) { Text("Apply") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun InspectorSection(title: String, values: List<Pair<String, String>>) {
+    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        Text(title, fontWeight = FontWeight.SemiBold)
+        values.forEach { (label, value) -> Row(Modifier.fillMaxWidth()) { Text(label, Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant); Text(value) } }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+@Composable
+private fun Ruler(zoom: Int) {
+    Row(Modifier.fillMaxWidth().height(30.dp).background(MaterialTheme.colorScheme.surfaceContainer).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("0     1     2     3     4     5     6     7     8", fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Text("$zoom%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun DocumentCanvas(
+    value: TextFieldValue,
+    document: WordProcessingDocument,
+    zoom: Int,
+    focusRequester: FocusRequester,
+    onValueChange: (TextFieldValue) -> Unit,
+    onToggle: (RichTextStyle) -> Unit,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
+    onTab: (Boolean) -> Unit,
+    onToggleChecklistItem: (String) -> Unit,
+    onUpdateTableCell: (String, Int, Int, String) -> Unit,
+    onResizeTable: (String, Int, Int) -> Unit,
+    onDeleteTableRow: (String, Int) -> Unit,
+    onDeleteTableColumn: (String, Int) -> Unit,
+    onSetTableHeaderRows: (String, Int) -> Unit,
+    onMergeTableCells: (String, Int, Int, Int) -> Unit,
+    onUpdateImage: (String, String, Float?, Float?, ImageWrapping) -> Unit,
+    onMoveImage: (String, Float, Float) -> Unit,
+    onDeleteObject: (String) -> Unit,
+    selectedObjectId: String?,
+    onSelectObject: (String?) -> Unit,
+    activePage: Int,
+    onActivePageChange: (Int) -> Unit,
+) {
+    val layout = remember(document) { DocumentLayoutEngine().layout(document) }
+    val slices = remember(document, layout, value.text.length) { pageTextSlices(document, layout, value.text.length) }
+    val listState = rememberLazyListState()
+    LaunchedEffect(activePage, layout.pageCount) {
+        val target = activePage.coerceIn(0, layout.pages.lastIndex)
+        if (target != activePage) onActivePageChange(target)
+        if (target != listState.firstVisibleItemIndex) listState.animateScrollToItem(target)
+    }
+    LaunchedEffect(listState) {
+        snapshotFlow { if (listState.isScrollInProgress) null else listState.firstVisibleItemIndex }
+            .collect { visiblePage -> visiblePage?.let(onActivePageChange) }
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        state = listState,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        itemsIndexed(layout.pages, key = { _, page -> "page-${page.index}" }) { pageIndex, page ->
+            val slice = slices[pageIndex]
+            val selected = pageIndex == activePage
+            val localSelection = TextRange(
+                (value.selection.start - slice.start).coerceIn(0, slice.length),
+                (value.selection.end - slice.start).coerceIn(0, slice.length),
+            )
+            val pageValue = TextFieldValue(
+                value.annotatedString.subSequence(slice.start, slice.end),
+                if (selected) localSelection else TextRange.Zero,
+            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Surface(
+                    modifier = Modifier.widthIn(max = (760 * zoom / 100).dp).fillMaxWidth()
+                        .aspectRatio(page.setup.widthPoints / page.setup.heightPoints)
+                        .clickable { onActivePageChange(pageIndex) }
+                        .semantics { contentDescription = "Document page ${pageIndex + 1} of ${layout.pageCount}" },
+                    color = Paper,
+                    contentColor = PaperText,
+                    shape = RoundedCornerShape(3.dp),
+                    border = if (selected) BorderStroke(2.dp, CoreBlue) else null,
+                    shadowElevation = if (selected) 7.dp else 4.dp,
+                ) {
+                    Box(Modifier.fillMaxSize()) {
+                        Column(Modifier.fillMaxSize()) {
+                            StructuredObjects(
+                                document = document,
+                                layout = layout,
+                                pageIndex = pageIndex,
+                                onUpdateTableCell = onUpdateTableCell,
+                                onResizeTable = onResizeTable,
+                                onDeleteTableRow = onDeleteTableRow,
+                                onDeleteTableColumn = onDeleteTableColumn,
+                                onSetTableHeaderRows = onSetTableHeaderRows,
+                                onMergeTableCells = onMergeTableCells,
+                                onUpdateImage = onUpdateImage,
+                                onMoveImage = onMoveImage,
+                                onDeleteObject = onDeleteObject,
+                                selectedObjectId = selectedObjectId,
+                                onSelectObject = onSelectObject,
+                            )
+                            BasicTextField(
+                            value = pageValue,
+                            onValueChange = { changed ->
+                                val combined = value.text.replaceRange(slice.start, slice.end, changed.text)
+                                onValueChange(TextFieldValue(
+                                    combined,
+                                    TextRange(slice.start + changed.selection.start, slice.start + changed.selection.end),
+                                ))
+                                onActivePageChange(pageIndex)
+                            },
+                            textStyle = TextStyle(
+                                color = PaperText,
+                                fontSize = (17 * zoom / 100f).sp,
+                                lineHeight = (28 * zoom / 100f).sp,
+                                fontFamily = FontFamily.Serif,
+                            ),
+                            cursorBrush = SolidColor(CoreBlue),
+                            modifier = Modifier.weight(1f).fillMaxWidth()
+                                .padding(horizontal = (72 * zoom / 100).dp, vertical = (34 * zoom / 100).dp)
+                                .then(if (selected) Modifier.focusRequester(focusRequester) else Modifier)
+                                .onPreviewKeyEvent { event ->
+                                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                                    if (event.key == Key.Tab) {
+                                        onTab(event.isShiftPressed)
+                                        return@onPreviewKeyEvent true
+                                    }
+                                    if (!event.isCtrlPressed) return@onPreviewKeyEvent false
+                                    when (event.key) {
+                                        Key.B -> { onToggle(RichTextStyle.Bold); true }
+                                        Key.I -> { onToggle(RichTextStyle.Italic); true }
+                                        Key.U -> { onToggle(RichTextStyle.Underline); true }
+                                        Key.Z -> { onUndo(); true }
+                                        Key.Y -> { onRedo(); true }
+                                        else -> false
+                                    }
+                                },
+                            decorationBox = { inner ->
+                                if (pageValue.text.isEmpty()) Text(
+                                    if (pageIndex == 0) "Start writing…" else "Continue writing…",
+                                    color = PaperText.copy(alpha = 0.42f),
+                                    fontFamily = FontFamily.Serif,
+                                    fontSize = 17.sp,
+                                )
+                                inner()
+                            },
+                            )
+                        }
+                        ListMarkerOverlay(document, layout, pageIndex, onToggleChecklistItem)
+                    }
+                }
+                Text(
+                    "${pageIndex + 1}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StructuredObjects(
+    document: WordProcessingDocument,
+    layout: DocumentLayout,
+    pageIndex: Int,
+    onUpdateTableCell: (String, Int, Int, String) -> Unit,
+    onResizeTable: (String, Int, Int) -> Unit,
+    onDeleteTableRow: (String, Int) -> Unit,
+    onDeleteTableColumn: (String, Int) -> Unit,
+    onSetTableHeaderRows: (String, Int) -> Unit,
+    onMergeTableCells: (String, Int, Int, Int) -> Unit,
+    onUpdateImage: (String, String, Float?, Float?, ImageWrapping) -> Unit,
+    onMoveImage: (String, Float, Float) -> Unit,
+    onDeleteObject: (String) -> Unit,
+    selectedObjectId: String?,
+    onSelectObject: (String?) -> Unit,
+) {
+    val objectIds = layout.pages[pageIndex].columns.flatMap { it.fragments }
+        .filter { it.kind == FragmentKind.Table || it.kind == FragmentKind.Image }
+        .mapTo(linkedSetOf()) { it.blockId }
+    val objects = document.sections.flatMap { it.blocks }.filter { it.id in objectIds }
+    if (objects.isEmpty()) return
+    Column(Modifier.fillMaxWidth().padding(horizontal = 72.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        objects.forEach { block -> when (block) {
+            is TableBlock -> EditableTable(
+                block, block.id == selectedObjectId, onSelectObject,
+                onUpdateTableCell, onResizeTable, onDeleteTableRow, onDeleteTableColumn,
+                onSetTableHeaderRows, onMergeTableCells, onDeleteObject,
+            )
+            is ImageBlock -> EditableImage(
+                block, block.id == selectedObjectId, onSelectObject, onUpdateImage, onMoveImage, onDeleteObject,
+            )
+            else -> Unit
+        }
+        }
+    }
+}
+
+internal data class ParagraphListMarker(val text: String, val level: Int)
+
+internal fun paragraphListMarkers(document: WordProcessingDocument): Map<String, ParagraphListMarker> = buildMap {
+    val counters = IntArray(9)
+    val kinds = arrayOfNulls<ListKind>(9)
+    document.sections.forEach { section ->
+        section.blocks.filterIsInstance<ParagraphBlock>().forEach paragraphLoop@ { paragraph ->
+            val list = paragraph.style.list
+            if (list == null) {
+                counters.fill(0)
+                kinds.fill(null)
+                return@paragraphLoop
+            }
+            ((list.level + 1)..8).forEach { level -> counters[level] = 0; kinds[level] = null }
+            val marker = when (list.kind) {
+                ListKind.Bulleted -> listOf("•", "◦", "▪")[list.level % 3]
+                ListKind.Checklist -> if (list.checked) "☑" else "☐"
+                ListKind.Numbered -> {
+                    counters[list.level] = if (kinds[list.level] == ListKind.Numbered) counters[list.level] + 1 else list.startAt
+                    "${counters[list.level]}."
+                }
+            }
+            kinds[list.level] = list.kind
+            put(paragraph.id, ParagraphListMarker(marker, list.level))
+        }
+    }
+}
+
+@Composable
+private fun ListMarkerOverlay(
+    document: WordProcessingDocument,
+    layout: DocumentLayout,
+    pageIndex: Int,
+    onToggleChecklistItem: (String) -> Unit,
+) {
+    val markers = remember(document) { paragraphListMarkers(document) }
+    if (markers.isEmpty()) return
+    val page = layout.pages[pageIndex]
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val scale = maxWidth.value / page.setup.widthPoints
+        page.columns.flatMap { it.fragments }
+            .filter { it.kind == FragmentKind.Paragraph && !it.continuedFromPrevious && it.blockId in markers }
+            .distinctBy { it.blockId }
+            .forEach { fragment ->
+                val marker = markers.getValue(fragment.blockId)
+                val x = ((fragment.bounds.left + marker.level * 18f - 22f) * scale).coerceAtLeast(4f)
+                val y = (fragment.bounds.top * scale).coerceAtLeast(0f)
+                Text(
+                    marker.text,
+                    modifier = Modifier.offset(x.dp, y.dp).clickable {
+                        if (marker.text == "☐" || marker.text == "☑") onToggleChecklistItem(fragment.blockId)
+                    }.semantics { contentDescription = if (marker.text == "☑") "Checked checklist item" else "Checklist item" },
+                    color = PaperText,
+                    fontSize = (11f * scale).coerceIn(9f, 18f).sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+    }
+}
+
+@Composable
+private fun EditableTable(
+    table: TableBlock,
+    selected: Boolean,
+    onSelect: (String?) -> Unit,
+    onUpdateCell: (String, Int, Int, String) -> Unit,
+    onResize: (String, Int, Int) -> Unit,
+    onDeleteRow: (String, Int) -> Unit,
+    onDeleteColumn: (String, Int) -> Unit,
+    onSetHeaderRows: (String, Int) -> Unit,
+    onMergeCells: (String, Int, Int, Int) -> Unit,
+    onDelete: (String) -> Unit,
+) {
+    val columnCount = table.rows.first().cells.size
+    var activeCell by remember(table.id) { mutableStateOf<Pair<Int, Int>?>(null) }
+    val focusManager = LocalFocusManager.current
+    val focusRequester = remember { FocusRequester() }
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusRequester(focusRequester)
+            .focusable()
+            .clickable { onSelect(table.id); focusRequester.requestFocus() }
+            .onKeyEvent { event ->
+                if (selected && event.type == KeyEventType.KeyDown && (event.key == Key.Delete || event.key == Key.Backspace)) {
+                    onDelete(table.id)
+                    true
+                } else false
+            },
+        color = Color(0xFFF7F9FC),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(if (selected) 3.dp else 1.dp, if (selected) CoreBlue else Color(0xFFCAD3DF)),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Table · ${table.rows.size} × $columnCount", color = PaperText, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                TextButton(onClick = { onResize(table.id, table.rows.size + 1, columnCount) }) { Text("+ Row") }
+                TextButton(onClick = { onResize(table.id, table.rows.size, columnCount + 1) }) { Text("+ Column") }
+                TextButton(onClick = { onDelete(table.id) }) { Text("Delete table") }
+            }
+            if (selected) {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(
+                        enabled = table.rows.size > 1,
+                        onClick = { onDeleteRow(table.id, table.rows.lastIndex) },
+                    ) { Text("− Last row") }
+                    TextButton(
+                        enabled = columnCount > 1,
+                        onClick = { onDeleteColumn(table.id, columnCount - 1) },
+                    ) { Text("− Last column") }
+                    TextButton(onClick = { onSetHeaderRows(table.id, if (table.headerRowCount == 0) 1 else 0) }) {
+                        Text(if (table.headerRowCount == 0) "Repeat first row" else "Stop repeating header")
+                    }
+                    val cell = activeCell
+                    TextButton(
+                        enabled = cell != null && cell.second < columnCount - 1 && table.rows[cell.first].cells[cell.second + 1].columnSpan > 0,
+                        onClick = { cell?.let { onMergeCells(table.id, it.first, it.second, it.second + 1) } },
+                    ) { Text("Merge with next") }
+                }
+            }
+            table.rows.forEachIndexed { rowIndex, row ->
+                Row(Modifier.fillMaxWidth()) {
+                    row.cells.forEachIndexed { columnIndex, cell ->
+                        if (cell.columnSpan == 0) return@forEachIndexed
+                        val text = cell.blocks.joinToString("\n") { paragraph -> paragraph.runs.joinToString("") { it.text } }
+                        Surface(Modifier.weight(cell.columnSpan.toFloat()), color = Paper, border = BorderStroke(if (activeCell == (rowIndex to columnIndex)) 2.dp else 1.dp, if (activeCell == (rowIndex to columnIndex)) CoreBlue else Color(0xFFCAD3DF))) {
+                            BasicTextField(
+                                value = text,
+                                onValueChange = { onUpdateCell(table.id, rowIndex, columnIndex, it) },
+                                textStyle = TextStyle(color = PaperText, fontSize = 14.sp),
+                                cursorBrush = SolidColor(CoreBlue),
+                                modifier = Modifier.fillMaxWidth()
+                                    .onFocusChanged { if (it.isFocused) activeCell = rowIndex to columnIndex }
+                                    .onPreviewKeyEvent { event ->
+                                        if (event.type == KeyEventType.KeyDown && event.key == Key.Tab) {
+                                            focusManager.moveFocus(if (event.isShiftPressed) FocusDirection.Previous else FocusDirection.Next)
+                                        } else false
+                                    }
+                                    .padding(9.dp),
+                                decorationBox = { inner ->
+                                    if (text.isEmpty()) Text("Cell", color = PaperText.copy(alpha = 0.38f), fontSize = 14.sp)
+                                    inner()
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditableImage(
+    image: ImageBlock,
+    selected: Boolean,
+    onSelect: (String?) -> Unit,
+    onUpdate: (String, String, Float?, Float?, ImageWrapping) -> Unit,
+    onMove: (String, Float, Float) -> Unit,
+    onDelete: (String) -> Unit,
+) {
     val context = LocalContext.current
-    val bitmap by produceState<Bitmap?>(initialValue = null, uri) {
+    val bitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, image.sourceUri) {
         value = withContext(Dispatchers.IO) {
             runCatching {
-                context.contentResolver.openInputStream(Uri.parse(uri))?.use(BitmapFactory::decodeStream)
+                context.contentResolver.openInputStream(Uri.parse(image.sourceUri))?.use { stream ->
+                    BitmapFactory.decodeStream(stream)
+                }?.asImageBitmap()
             }.getOrNull()
         }
     }
-    if (bitmap != null) {
-        Image(
-            bitmap = bitmap!!.asImageBitmap(),
-            contentDescription = "Document image",
-            modifier = Modifier.fillMaxWidth().heightIn(max = 112.dp).clip(RoundedCornerShape(14.dp)),
-        )
-    }
-}
-
-@Composable
-private fun FieldShell(placeholder: String, value: String, field: @Composable () -> Unit) {
+    val width = image.widthPoints ?: 300f
+    val height = image.heightPoints ?: 200f
+    var previewWidth by remember(image.id, width) { mutableStateOf(width) }
+    var previewHeight by remember(image.id, height) { mutableStateOf(height) }
+    var previewX by remember(image.id, image.offsetXPoints) { mutableStateOf(image.offsetXPoints) }
+    var previewY by remember(image.id, image.offsetYPoints) { mutableStateOf(image.offsetYPoints) }
+    val focusRequester = remember { FocusRequester() }
     Surface(
-        color = SlateSurfaceSoft,
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, SlateBorder),
+        modifier = Modifier
+            .fillMaxWidth()
+            .offset(previewX.dp, previewY.dp)
+            .focusRequester(focusRequester)
+            .focusable()
+            .clickable { onSelect(image.id); focusRequester.requestFocus() }
+            .onKeyEvent { event ->
+                if (selected && event.type == KeyEventType.KeyDown && (event.key == Key.Delete || event.key == Key.Backspace)) {
+                    onDelete(image.id)
+                    true
+                } else false
+            },
+        color = Color(0xFFF7F9FC),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(if (selected) 3.dp else 1.dp, if (selected) CoreBlue else Color(0xFFCAD3DF)),
     ) {
-        Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp)) {
-            if (value.isBlank()) Text(placeholder, color = SlateTextMuted)
-            field()
+        Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap!!,
+                    contentDescription = image.description.ifBlank { "Inserted picture" },
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.widthIn(max = width.coerceIn(120f, 720f).dp).fillMaxWidth().heightIn(max = height.coerceIn(120f, 420f).dp),
+                )
+            } else {
+                Box(Modifier.fillMaxWidth().height(120.dp).background(Color(0xFFE8EDF5), RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
+                    Text("Picture preview unavailable", color = PaperText.copy(alpha = 0.62f))
+                }
+            }
+            BasicTextField(
+                value = image.description,
+                onValueChange = { onUpdate(image.id, it, image.widthPoints, image.heightPoints, image.wrapping) },
+                textStyle = TextStyle(color = PaperText, fontSize = 14.sp),
+                cursorBrush = SolidColor(CoreBlue),
+                modifier = Modifier.fillMaxWidth().background(Paper, RoundedCornerShape(6.dp)).padding(9.dp),
+                decorationBox = { inner ->
+                    if (image.description.isBlank()) Text("Describe this picture for accessibility", color = PaperText.copy(alpha = 0.42f), fontSize = 14.sp)
+                    inner()
+                },
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { onUpdate(image.id, image.description, (width - 36f).coerceAtLeast(72f), (height - 24f).coerceAtLeast(48f), image.wrapping) }) { Text("Smaller") }
+                TextButton(onClick = { onUpdate(image.id, image.description, width + 36f, height + 24f, image.wrapping) }) { Text("Larger") }
+                TextButton(onClick = {
+                    val next = ImageWrapping.entries[(image.wrapping.ordinal + 1) % ImageWrapping.entries.size]
+                    onUpdate(image.id, image.description, image.widthPoints, image.heightPoints, next)
+                }) { Text(image.wrapping.name) }
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = { onDelete(image.id) }) { Text("Delete") }
+            }
+            if (selected) {
+                Box(
+                    Modifier
+                        .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(8.dp))
+                        .semantics { contentDescription = "Drag to position picture" }
+                        .pointerInput(image.id, image.offsetXPoints, image.offsetYPoints) {
+                            detectDragGestures(
+                                onDragStart = { previewX = image.offsetXPoints; previewY = image.offsetYPoints },
+                                onDragEnd = { onMove(image.id, previewX, previewY) },
+                                onDragCancel = { previewX = image.offsetXPoints; previewY = image.offsetYPoints },
+                            ) { change, dragAmount ->
+                                change.consume()
+                                previewX = (previewX + dragAmount.x).coerceIn(0f, 1200f)
+                                previewY = (previewY + dragAmount.y).coerceIn(0f, 1200f)
+                            }
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                ) {
+                    Text("Move picture · ${previewX.toInt()}, ${previewY.toInt()} pt", fontWeight = FontWeight.SemiBold)
+                }
+                Box(
+                    Modifier
+                        .align(Alignment.End)
+                        .background(CoreBlue, RoundedCornerShape(8.dp))
+                        .semantics { contentDescription = "Drag to resize picture" }
+                        .pointerInput(image.id, width, height) {
+                            detectDragGestures(
+                                onDragStart = { previewWidth = width; previewHeight = height },
+                                onDragEnd = {
+                                    onUpdate(image.id, image.description, previewWidth, previewHeight, image.wrapping)
+                                },
+                                onDragCancel = { previewWidth = width; previewHeight = height },
+                            ) { change, dragAmount ->
+                                change.consume()
+                                previewWidth = (previewWidth + dragAmount.x).coerceIn(72f, 1200f)
+                                previewHeight = (previewHeight + dragAmount.y).coerceIn(48f, 1200f)
+                            }
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                ) {
+                    Text("↘  ${previewWidth.toInt()} × ${previewHeight.toInt()} pt", color = Color.White, fontWeight = FontWeight.SemiBold)
+                }
+            }
         }
     }
 }
 
-@Composable
-private fun FormattingButton(
-    label: String,
-    active: Boolean = false,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    Surface(
-        color = if (active) MaterialTheme.colorScheme.primaryContainer else SlateSurfaceRaised,
-        contentColor = if (enabled) MaterialTheme.colorScheme.onSurface else SlateTextMuted.copy(alpha = 0.45f),
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(
-            1.dp,
-            if (active) MaterialTheme.colorScheme.primary else SlateBorder,
-        ),
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(enabled = enabled, onClick = onClick),
-    ) {
-        Text(
-            label,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 13.sp,
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 9.dp),
-        )
+internal data class PageTextSlice(val start: Int, val end: Int) {
+    init { require(start >= 0 && end >= start) }
+    val length: Int get() = end - start
+}
+
+internal fun pageTextSlices(
+    document: WordProcessingDocument,
+    layout: DocumentLayout,
+    textLength: Int,
+): List<PageTextSlice> {
+    val paragraphRanges = buildMap<String, IntRange> {
+        var cursor = 0
+        var hasParagraph = false
+        document.sections.forEach { section ->
+            section.blocks.forEach blockLoop@ { block ->
+                if (block !is ParagraphBlock) return@blockLoop
+                if (hasParagraph) cursor += 1
+                val start = cursor
+                cursor += block.runs.sumOf { it.text.length }
+                put(block.id, start..cursor)
+                hasParagraph = true
+            }
+        }
+    }
+    val rawStarts = layout.pages.map { page ->
+        page.columns.asSequence()
+            .flatMap { it.fragments.asSequence() }
+            .filter { it.kind == FragmentKind.Paragraph }
+            .mapNotNull { fragment ->
+                val range = paragraphRanges[fragment.blockId] ?: return@mapNotNull null
+                range.first + (fragment.lines.minOfOrNull { it.sourceStart } ?: 0)
+            }
+            .minOrNull()
+    }
+    val starts = MutableList(layout.pageCount) { 0 }
+    rawStarts.indices.forEach { index ->
+        val previous = starts.getOrElse(index - 1) { 0 }
+        val candidate = if (index == 0) 0 else rawStarts[index] ?: previous
+        starts[index] = candidate.coerceIn(previous, textLength)
+    }
+    return starts.mapIndexed { index, start ->
+        val end = starts.getOrNull(index + 1) ?: textLength
+        PageTextSlice(start, end.coerceIn(start, textLength))
     }
 }
 
-private fun annotatedBody(body: RichTextDocument): AnnotatedString = AnnotatedString.Builder(body.text).apply {
+@Composable
+private fun StatusBar(document: Document, saving: Boolean, zoom: Int, activePage: Int, onZoom: (Int) -> Unit) {
+    val words = wordCount(document.body.text)
+    val pages = remember(document.wordProcessingDocument, document.body) {
+        DocumentLayoutEngine().layout(document.wordProcessingDocument ?: R2DocumentBridge.fromLegacy(document)).pageCount
+    }
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(if (saving) "Saving…" else "Saved locally", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("  •  Page ${(activePage + 1).coerceAtMost(pages)} of $pages  •  $words words  •  ${document.body.text.length} characters", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            TextButton(onClick = { onZoom((zoom - 25).coerceAtLeast(50)) }) { Text("−") }
+            Text("$zoom%", style = MaterialTheme.typography.labelMedium)
+            TextButton(onClick = { onZoom((zoom + 25).coerceAtMost(175)) }) { Text("+") }
+        }
+    }
+}
+
+private fun sectionMarginText(paragraphs: List<ParagraphBlock>): String =
+    paragraphs.joinToString("\n") { paragraph -> paragraph.runs.joinToString("") { it.text } }
+
+private fun wordCount(text: String): Int = text.trim().takeIf(String::isNotEmpty)?.split(Regex("\\s+"))?.size ?: 0
+
+private fun annotatedBody(body: RichTextDocument, document: WordProcessingDocument): AnnotatedString = AnnotatedString.Builder(body.text).apply {
     body.normalized().ranges.forEach { range ->
         val style = when (range.style) {
             RichTextStyle.Bold -> SpanStyle(fontWeight = FontWeight.Bold)
@@ -1106,23 +1608,47 @@ private fun annotatedBody(body: RichTextDocument): AnnotatedString = AnnotatedSt
             RichTextStyle.Underline -> SpanStyle(textDecoration = TextDecoration.Underline)
             RichTextStyle.HeadingOne -> SpanStyle(fontSize = 28.sp, fontWeight = FontWeight.Bold)
             RichTextStyle.Link -> SpanStyle(color = CoreBlue, textDecoration = TextDecoration.Underline)
-            RichTextStyle.Quote -> SpanStyle(fontStyle = FontStyle.Italic, color = SlateTextMuted)
+            RichTextStyle.Quote -> SpanStyle(fontStyle = FontStyle.Italic, color = Color(0xFF536273))
             RichTextStyle.Image -> SpanStyle(color = CoreBlue, fontWeight = FontWeight.SemiBold)
             RichTextStyle.Table -> SpanStyle(fontWeight = FontWeight.Medium)
         }
         addStyle(style, range.start, range.end)
     }
+    var cursor = 0
+    var hasParagraph = false
+    document.sections.forEach { section ->
+        section.blocks.filterIsInstance<ParagraphBlock>().forEach { paragraph ->
+            if (hasParagraph) cursor += 1
+            val start = cursor
+            cursor = (cursor + paragraph.runs.sumOf { it.text.length }).coerceAtMost(body.text.length)
+            val listIndent = paragraph.style.list?.let { (it.level + 1) * 18f } ?: 0f
+            val restIndent = paragraph.style.startIndentPoints + listIndent
+            addStyle(
+                androidx.compose.ui.text.ParagraphStyle(
+                    textAlign = when (paragraph.style.alignment) {
+                        ParagraphAlignment.Start -> TextAlign.Start
+                        ParagraphAlignment.Center -> TextAlign.Center
+                        ParagraphAlignment.End -> TextAlign.End
+                        ParagraphAlignment.Justify -> TextAlign.Justify
+                    },
+                    textIndent = TextIndent(
+                        firstLine = (restIndent + paragraph.style.firstLineIndentPoints).sp,
+                        restLine = restIndent.sp,
+                    ),
+                ),
+                start,
+                cursor,
+            )
+            hasParagraph = true
+        }
+    }
 }.toAnnotatedString()
 
-private fun TextRange.coerceIn(minimum: Int, maximum: Int): TextRange = TextRange(
-    start.coerceIn(minimum, maximum),
-    end.coerceIn(minimum, maximum),
-)
+private fun TextRange.coerceIn(minimum: Int, maximum: Int): TextRange = TextRange(start.coerceIn(minimum, maximum), end.coerceIn(minimum, maximum))
 
 private fun selectionOrWordRange(text: String, selection: TextRange): TextRange {
     if (!selection.collapsed) return selection.coerceIn(0, text.length)
     if (text.isEmpty()) return TextRange.Zero
-
     val cursor = selection.start.coerceIn(0, text.length)
     var start = cursor
     var end = cursor
@@ -1130,52 +1656,3 @@ private fun selectionOrWordRange(text: String, selection: TextRange): TextRange 
     while (end < text.length && !text[end].isWhitespace()) end += 1
     return TextRange(start, end)
 }
-
-private fun paragraphRange(text: String, selection: TextRange): TextRange {
-    if (text.isEmpty()) return TextRange.Zero
-    val safe = selection.coerceIn(0, text.length)
-    val searchStart = (safe.min - 1).coerceAtLeast(0)
-    val start = text.lastIndexOf('\n', searchStart).let { if (it < 0) 0 else it + 1 }
-    val end = text.indexOf('\n', safe.max).let { if (it < 0) text.length else it }
-    return TextRange(start, end)
-}
-
-private fun toggleLinePrefix(
-    body: RichTextDocument,
-    selection: TextRange,
-    prefix: String,
-): Pair<RichTextDocument, TextRange> {
-    val range = paragraphRange(body.text, selection)
-    if (range.start == range.end && body.text.isEmpty()) return body to selection
-
-    val original = body.text.substring(range.start, range.end)
-    val lines = original.split('\n')
-    val removePrefix = lines.all { it.startsWith(prefix) }
-    val replacement = lines.joinToString("\n") { line ->
-        if (removePrefix) line.removePrefix(prefix) else prefix + line
-    }
-    val updatedText = body.text.replaceRange(range.start, range.end, replacement)
-    val updatedBody = body.updateText(updatedText)
-    return updatedBody to TextRange(range.start, range.start + replacement.length)
-}
-
-private val backIcon: ImageVector = ImageVector.Builder(
-    name = "Back",
-    defaultWidth = 24.dp,
-    defaultHeight = 24.dp,
-    viewportWidth = 24f,
-    viewportHeight = 24f,
-).apply {
-    path(fill = SolidColor(Color.White)) {
-        moveTo(20f, 11f)
-        horizontalLineTo(7.83f)
-        lineTo(13.42f, 5.41f)
-        lineTo(12f, 4f)
-        lineTo(4f, 12f)
-        lineTo(12f, 20f)
-        lineTo(13.42f, 18.59f)
-        lineTo(7.83f, 13f)
-        horizontalLineTo(20f)
-        close()
-    }
-}.build()

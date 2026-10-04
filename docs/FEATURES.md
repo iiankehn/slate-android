@@ -1,80 +1,54 @@
-# Slate R1 feature reference
+# Feature reference
 
-This page describes the implemented R1 behavior in the current repository.
+## Unified library
 
-## Library and organization
-
-| Capability | R1 behavior |
+| Capability | Behavior |
 | --- | --- |
-| Create | Creates an untitled local document and opens it on compact layouts |
-| Rename | Edit the title directly or use **Rename** in the editor menu |
-| Duplicate | Copies title, text, formatting, folder, and tags into a new active document |
-| Pin | Sorts an active document ahead of ordinary documents |
-| Favorite | Adds the document to the Favorites filter |
-| Archive | Removes the document from Documents and places it in Archive |
-| Trash | Recoverable deletion with a confirmation prompt |
-| Permanent delete | Available from Trash and removes the stored document |
-| Folder and tags | One folder string and a set of comma-separated tags per document |
-| Search | Case-insensitive title, body, folder, and tag search within the selected library filter |
-| History | Up to 30 local recovery checkpoints per document |
+| Adaptive creation | Starts without forcing a Note/Forge decision |
+| Classification | Labels content Note or Forge from persisted structure |
+| Search | Matches title, body, folder, and tags |
+| Organization | Pin, favorite, folder, tags, archive, trash, restore, and duplicate |
+| Recovery | Autosave plus up to 30 local checkpoints per document |
+| Import | Adds supported external documents to the same library |
 
-## Editor
+## Editing
 
-| Tool | Selection behavior |
-| --- | --- |
-| Bold, italic, underline | Toggles the selected text; with no selection, targets the current word |
-| H1 and quote | Targets the selected text or current line |
-| List | Toggles a `• ` prefix on the selected/current line |
-| Check | Toggles a `☐ ` prefix on the selected/current line |
-| Link | Uses selected/current-word text as the label and stores the entered URL |
-| Image | Stores a persisted Android document URI and shows a compact preview |
-| Table | Inserts a two-column Markdown-style text template |
-| Find | Selects the next case-insensitive match and wraps to the start |
-| Undo/redo | Editor-session stacks; durable checkpoints remain in Version history |
+- Rich text: bold, italic, underline, headings, quotes, links, lists, and checklists
+- Media and structure: images and tables
+- Document navigation: find, undo, redo, selection-aware editing, and keyboard shortcuts
+- Forge structure: sections, page setup, headers, footers, page breaks, and paginated layout
+- Input: touch, software keyboard, hardware keyboard, and mouse-friendly controls
 
-## Keyboard shortcuts
+## Adaptive rules
 
-| Shortcut | Action |
-| --- | --- |
-| `Ctrl+B` | Bold |
-| `Ctrl+I` | Italic |
-| `Ctrl+U` | Underline |
-| `Ctrl+F` | Find in document |
-| `Ctrl+Z` | Undo |
-| `Ctrl+Y` | Redo |
+Ordinary text, rich formatting, links, and simple content remain Note-compatible. Multiple sections, custom page setup, headers or footers, non-continuous section starts, structured tables, and forced page breaks require Forge. Length alone never triggers Forge, and Forge documents are not silently downgraded.
 
-## Formats
+## Interchange
 
-| Format | Import | Export | Notes |
+| Format | Import | Export | Fidelity |
 | --- | --- | --- | --- |
-| Plain text | Yes | Yes | UTF-8 text |
-| Markdown | Yes | Yes | R1 subset; see fidelity notes below |
-| DOCX | Yes | Yes | Basic paragraph interchange, not Word parity |
-| PDF | No | Yes | Simple paginated text output |
-| Android share text | No | Yes | Sends title as subject and body as plain text |
-| Android print | No | Yes | Prints the generated PDF through the system service |
+| `.slx` | Yes | Yes | Portable rich-note model |
+| `.slxf` | Yes | Yes | Full Slate word-processing model |
+| TXT | Yes | Yes | Plain UTF-8 text |
+| Markdown | Yes | Yes | Supported rich-text subset |
+| DOCX | Yes | Yes | Practical interchange; advanced Word layout may simplify |
+| PDF | No | Yes | Paginated output |
+| Android share | No | Yes | Plain text through the system share sheet |
+| Android print | No | Yes | PDF through the system print service |
 
-### Fidelity boundaries
+## Platform behavior
 
-- Markdown import recognizes H1, block quote, and `[label](url)` link syntax.
-- Markdown export emits bold, italic, underline using HTML tags, H1, quote, and links.
-- DOCX import extracts readable paragraph text and reports that advanced layout may be simplified.
-- DOCX export writes the title and body as basic paragraphs.
-- Images and table range metadata are internal editing aids and are not fully round-tripped through every export format.
+- Android 12+
+- Compact and expanded layouts
+- Phone, tablet, Googlebook Android, portrait, and landscape targets
+- ARM64 and x86_64 compatibility checks in CI
+- System Back returns to the library before exiting from an open compact document
+- Editor controls remain reachable when the software keyboard opens
+- User-triggered native updater verifies file size, SHA-256, package identity, and Android signature
 
-## Saving and recovery
+## Current limitations
 
-- Each edit creates an immediate checkpoint.
-- The current document snapshot is debounced by 450 ms.
-- Startup compares the stored snapshot with recovery entries and restores a newer checkpoint.
-- History is bounded to 30 entries per document.
-- App-private storage is removed by Android when Slate is uninstalled.
-
-## Adaptive behavior
-
-- Compact windows use library/editor navigation.
-- Windows at least 840 dp wide use a library/editor split view.
-- Android Back returns from the compact editor to the library.
-- The formatting bar uses IME insets and horizontal scrolling so it remains usable with the software keyboard.
-
-R1 is intended for Android 12+ phones and adaptive Android windows. Expanded architecture and form-factor commitments belong to the separate Slate R2 product.
+- DOCX is an interchange format, not a claim of Microsoft Word layout parity.
+- Exporting a Forge document to `.slx` may simplify page-only features; the source remains unchanged.
+- The start center does not yet expose every folder, tag, saved-search, and history control supported by the data layer.
+- Whole-library encrypted backup and guided migration from the former standalone Forge app remain roadmap items.

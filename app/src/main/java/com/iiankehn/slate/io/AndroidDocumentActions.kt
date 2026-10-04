@@ -1,9 +1,11 @@
 package com.iiankehn.slate.io
 
 import android.content.Context
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.pdf.PdfDocument
 import android.os.Bundle
 import android.os.CancellationSignal
@@ -13,57 +15,62 @@ import android.print.PrintAttributes
 import android.print.PrintDocumentAdapter
 import android.print.PrintDocumentInfo
 import android.print.PrintManager
-import androidx.core.content.FileProvider
 import com.iiankehn.slate.model.Document
 import com.iiankehn.slate.model.DocumentTitlePolicy
+import com.iiankehn.slate.model.WordProcessingDocument
+import com.iiankehn.slate.model.ImageBlock
+import com.iiankehn.slate.layout.DocumentLayoutEngine
+import com.iiankehn.slate.layout.FragmentKind
 import java.io.ByteArrayOutputStream
-import java.io.File
 import java.io.FileOutputStream
 
 object AndroidDocumentActions {
-    fun continueInForge(context: Context, document: Document, assets: List<SlxAsset> = emptyList()) {
-        requireTrustedTarget(context, "com.iiankehn.slater2")
-        val directory = File(context.cacheDir, "handoff").apply { mkdirs() }
-        val file = File(directory, "${document.id}.slx")
-        file.writeBytes(DocumentFormats.exportSlx(document, assets))
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, SlxCodec.MIME_TYPE)
-            setPackage("com.iiankehn.slater2")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        context.startActivity(intent)
-    }
-
-    private fun requireTrustedTarget(context: Context, targetPackage: String) {
-        require(context.packageManager.checkSignatures(context.packageName, targetPackage) == PackageManager.SIGNATURE_MATCH) {
-            "The installed Slate Forge build is missing or is not signed by the trusted Slate key."
-        }
-    }
-
     fun renderPdf(document: Document): ByteArray {
+        val r2 = document.wordProcessingDocument ?: R2DocumentBridge.fromLegacy(document)
+        return renderPdf(r2, null)
+    }
+
+    fun renderPdf(context: Context, document: Document): ByteArray {
+        val r2 = document.wordProcessingDocument ?: R2DocumentBridge.fromLegacy(document)
+        return renderPdf(r2, context)
+    }
+
+    fun renderPdf(document: WordProcessingDocument): ByteArray = renderPdf(document, null)
+
+    private fun renderPdf(document: WordProcessingDocument, context: Context?): ByteArray {
         val pdf = PdfDocument()
-        val title = DocumentTitlePolicy.displayTitle(document.title, document.body.text)
-        val lines = buildList {
-            add(title)
-            add("")
-            document.body.text.lines().forEach(::add)
+        val layout = DocumentLayoutEngine().layout(document)
+        val images = document.sections.flatMap { it.blocks }.filterIsInstance<ImageBlock>().associateBy(ImageBlock::id)
+        val bitmaps = mutableMapOf<String, android.graphics.Bitmap?>()
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f; color = android.graphics.Color.rgb(17, 19, 24) }
+        val rulePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE; strokeWidth = 0.75f; color = android.graphics.Color.rgb(130, 134, 142)
         }
-        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 28f; isFakeBoldText = true }
-        val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15f }
-        var pageNumber = 1
-        var index = 0
-        while (index < lines.size) {
-            val page = pdf.startPage(PdfDocument.PageInfo.Builder(612, 792, pageNumber++).create())
-            var y = 64f
-            while (index < lines.size && y < 744f) {
-                val line = lines[index]
-                val paint = if (index == 0) titlePaint else bodyPaint
-                wrap(line, if (index == 0) 38 else 72).forEach { segment ->
-                    if (y < 744f) page.canvas.drawText(segment, 48f, y, paint)
-                    y += if (index == 0) 38f else 23f
+        layout.pages.forEach { laidOutPage ->
+            val setup = laidOutPage.setup
+            val page = pdf.startPage(PdfDocument.PageInfo.Builder(setup.widthPoints.toInt(), setup.heightPoints.toInt(), laidOutPage.index + 1).create())
+            val fragments = laidOutPage.header + laidOutPage.columns.flatMap { it.fragments } + laidOutPage.footer
+            fragments.forEach { fragment ->
+                when (fragment.kind) {
+                    FragmentKind.Paragraph, FragmentKind.Header, FragmentKind.Footer -> fragment.lines.forEach { line ->
+                        page.canvas.drawText(line.text, line.bounds.left, line.bounds.bottom - 2f, textPaint)
+                    }
+                    FragmentKind.Table -> page.canvas.drawRect(RectF(fragment.bounds.left, fragment.bounds.top, fragment.bounds.right, fragment.bounds.bottom), rulePaint)
+                    FragmentKind.Image -> {
+                        val bitmap = bitmaps.getOrPut(fragment.blockId) {
+                            val image = images[fragment.blockId]
+                            if (context == null || image == null) null else runCatching {
+                                context.contentResolver.openInputStream(Uri.parse(image.sourceUri))?.use(BitmapFactory::decodeStream)
+                            }.getOrNull()
+                        }
+                        val destination = RectF(fragment.bounds.left, fragment.bounds.top, fragment.bounds.right, fragment.bounds.bottom)
+                        if (bitmap != null) page.canvas.drawBitmap(bitmap, null, destination, null)
+                        else {
+                            page.canvas.drawRect(destination, rulePaint)
+                            page.canvas.drawText("Image", fragment.bounds.left + 8f, fragment.bounds.top + 18f, textPaint)
+                        }
+                    }
                 }
-                index += 1
             }
             pdf.finishPage(page)
         }
@@ -83,7 +90,7 @@ object AndroidDocumentActions {
     }
 
     fun print(context: Context, document: Document) {
-        val bytes = renderPdf(document)
+        val bytes = renderPdf(context, document)
         val title = DocumentTitlePolicy.displayTitle(document.title, document.body.text)
         val adapter = object : PrintDocumentAdapter() {
             override fun onLayout(
@@ -113,16 +120,4 @@ object AndroidDocumentActions {
         (context.getSystemService(Context.PRINT_SERVICE) as PrintManager).print(title, adapter, null)
     }
 
-    private fun wrap(value: String, width: Int): List<String> {
-        if (value.length <= width) return listOf(value)
-        val lines = mutableListOf<String>()
-        var remaining = value
-        while (remaining.length > width) {
-            val breakAt = remaining.lastIndexOf(' ', width).takeIf { it > 0 } ?: width
-            lines += remaining.substring(0, breakAt)
-            remaining = remaining.substring(breakAt).trimStart()
-        }
-        lines += remaining
-        return lines
-    }
 }

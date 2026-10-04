@@ -31,7 +31,7 @@ data class SlxDocument(
     val warnings: List<String> = emptyList(),
 )
 
-/** Portable Slate rich-text package shared by Slate Notes and Slate Forge. */
+/** Portable rich-note package used by Slate. */
 object SlxCodec {
     const val MIME_TYPE = "application/vnd.core.slate.slx"
     const val FILE_EXTENSION = "slx"

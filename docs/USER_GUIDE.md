@@ -1,93 +1,48 @@
-# Slate R1 user guide
+# Slate user guide
 
-## Install
+## Start writing
 
-Download the APK from the [latest official release](https://github.com/iiankehn/slate-android/releases/latest), open it, and approve Android's installer prompt. Android may first ask you to allow installs from the browser or file manager that opened the APK.
+Select **New document** from the start center. Slate opens an adaptive document. Write normally; there is no required Note/Forge choice.
 
-Slate requires Android 12 or newer. An account and network connection are not required for writing.
+The library badge shows **Note** while the file uses note-compatible content. If you add page setup, sections, headers, footers, structured tables, or page breaks, Slate preserves it as **Forge**. A long note remains a note.
 
-## Use the library
+## Use the workspace
 
-- Tap **New** to create a document.
-- Tap a document row to open it.
-- Use **Search documents** to search titles, text, folders, and tags.
-- Use the chips to switch between Documents, Favorites, Archive, and Trash.
-- Tap **Import** to choose a plain-text, Markdown, or DOCX file.
+The Forge-derived ribbon groups editing and document actions. On narrower screens, groups scroll or compact while remaining available above the software keyboard. On larger windows, the workspace exposes more controls at once.
 
-On phones, use the editor's arrow or Android Back to return to the library. On larger windows, the library and editor appear together.
+Common keyboard shortcuts include `Ctrl+B`, `Ctrl+I`, `Ctrl+U`, `Ctrl+F`, `Ctrl+Z`, and `Ctrl+Y`.
 
-## Write and format
+## Organize documents
 
-Edit the title at the top of the page and write in the body below it. Select text before using Bold, Italic, or Underline. With no selection, Slate uses the current word for inline styles and the current line for H1 or Quote.
+Use search to match titles, body text, folders, or tags. Library filters expose active documents, favorites, archive, and trash. A document menu provides pin, favorite, duplicate, archive, trash, restore, and permanent delete where applicable.
 
-The formatting dock scrolls horizontally and remains above the software keyboard. Available tools are:
-
-- **B**, **I**, **U**, and **H1**
-- **List** and **Check** line prefixes
-- **Quote** and **Link**
-- **Image** and a simple **Table** template
-- **Find**, Undo, and Redo
-
-Hardware keyboards support `Ctrl+B`, `Ctrl+I`, `Ctrl+U`, `Ctrl+F`, `Ctrl+Z`, and `Ctrl+Y`.
-
-## Organize and manage a document
-
-Open the three-dot editor menu to:
-
-- rename, favorite, pin, duplicate, archive, or move the document to Trash;
-- assign a folder and comma-separated tags;
-- open version history;
-- export, share, or print;
-- check for Slate updates.
-
-Trash is recoverable. Open the Trash filter, select the document, and choose **Restore from trash**. **Delete permanently** cannot be undone through the normal library.
-
-## Saving and version history
-
-Slate saves locally while you work. The editor header shows **Saving…** during a pending write and **Saved locally** afterward.
-
-Every edit also produces a recovery checkpoint. Open **Version history** to restore one of the newest 30 checkpoints. A restore changes the current document and is itself saved as a new edit.
-
-Android backup and device transfer are disabled for Slate. Export important documents before uninstalling or clearing app storage.
+Permanent deletion cannot be undone. Ordinary deletion moves a document to Trash first.
 
 ## Import and export
 
-### Import
+Slate imports `.slx`, `.slxf`, TXT, Markdown, and DOCX through Android's system picker. Importing does not overwrite the source file.
 
-Use **Import** in the library or open a supported file from another Android app. Imports are limited to 25 MB. DOCX files with unusually large or complex archives are rejected for safety.
+Use `.slx` for portable Note-compatible content and `.slxf` for complete Forge fidelity. TXT and Markdown are useful for open text interchange; DOCX is practical interchange with other word processors; PDF and print are presentation outputs.
 
-### Export
+When exporting Forge content as `.slx`, page-specific features may simplify in the exported copy. The original document is not changed.
 
-The editor menu can export:
+## Recover work
 
-- `.txt` plain text;
-- `.md` Markdown;
-- `.docx` basic Word-compatible paragraphs;
-- `.pdf` simple paginated text.
-
-Android's file picker chooses the destination. **Share** sends plain text to another app. **Print** opens the system print service.
-
-See [FEATURES.md](FEATURES.md) for format-fidelity details.
-
-## Add images
-
-Tap **Image** and choose an image through Android's document picker. Slate keeps a scoped reference to the selected file and shows a compact preview. Moving, deleting, or revoking access to the original image may make the preview unavailable.
+Slate stores local checkpoints while you edit and saves the current snapshot after a short idle delay. Open version history where available to restore a prior checkpoint. After an interrupted write, Slate can recover a newer checkpoint during startup.
 
 ## Update Slate
 
-Open the editor menu and select **Check for updates**. Slate contacts the official GitHub release channel only after this action.
+Choose **Check for updates**. Slate contacts the official GitHub release endpoint only after this action, downloads the declared APK, verifies its SHA-256, and opens Android's installer. Android may ask once for permission to install updates from Slate, then confirms the replacement.
 
-When an update is available:
+An official update replaces the installed version without deleting the library because it uses the same package and signing key. Never uninstall merely to update; uninstalling removes app-private data.
 
-1. Approve Slate as an installation source if Android asks.
-2. Slate downloads the APK and verifies its SHA-256 checksum.
-3. Android verifies the app signature and displays the final update prompt.
-4. Install over the existing copy; do not uninstall first.
+## Migrate from the former apps
 
-Documents remain in place during a correctly signed in-place update. Draft releases are not offered by the updater.
+- Existing Slate Notes: install the unified signed APK over the current app. Its database migrates in place.
+- Standalone Slate Forge: export each document as `.slxf` or `.slx`, install/open unified Slate, then import those files. The old app used another package and cannot share its private database directly.
 
-## Troubleshooting and feedback
+Keep exports until you have verified every important document in unified Slate.
 
-Before reporting a bug, note the Android version, device model, window/form factor, Slate release, and exact steps that reproduce the problem. Remove private writing from screenshots or recordings.
+## Report a problem
 
-Use the repository's [issue forms](https://github.com/iiankehn/slate-android/issues/new/choose). For security vulnerabilities, follow [SECURITY.md](../SECURITY.md) and do not publish exploit details.
+Open a [GitHub issue](https://github.com/iiankehn/slate-android/issues/new/choose) with the Slate version, Android version, device/form factor, document format, expected result, actual result, and repeatable steps. Remove private text and personal files before sharing logs or samples.

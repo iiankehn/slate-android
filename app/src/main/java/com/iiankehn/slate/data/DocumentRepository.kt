@@ -1,9 +1,12 @@
 package com.iiankehn.slate.data
 
 import com.iiankehn.slate.model.Document
+import com.iiankehn.slate.model.DocumentExperience
 import com.iiankehn.slate.model.RichTextDocument
 import com.iiankehn.slate.model.RichTextRange
 import com.iiankehn.slate.model.RichTextStyle
+import com.iiankehn.slate.io.R2DocumentBridge
+import com.iiankehn.slate.io.R2DocumentCodec
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -79,6 +82,8 @@ private fun Document.toEntity() = DocumentEntity(
     folder = folder,
     tagsPayload = tags.sorted().joinToString(TAG_SEPARATOR),
     updatedAtEpochMillis = updatedAtEpochMillis,
+    r2Payload = R2DocumentCodec.encode(currentR2()),
+    experience = experience.name,
 )
 
 private fun Document.toRangeEntities() = body.normalized().ranges.map { range ->
@@ -91,10 +96,8 @@ private fun Document.toRangeEntities() = body.normalized().ranges.map { range ->
     )
 }
 
-private fun DocumentWithRanges.toModel() = Document(
-    id = document.id,
-    title = document.title,
-    body = RichTextDocument(
+private fun DocumentWithRanges.toModel(): Document {
+    val legacyBody = RichTextDocument(
         text = document.bodyText,
         ranges = ranges.mapNotNull { range ->
             runCatching {
@@ -106,7 +109,11 @@ private fun DocumentWithRanges.toModel() = Document(
                 )
             }.getOrNull()
         },
-    ).normalized(),
+    ).normalized()
+    val shell = Document(
+    id = document.id,
+    title = document.title,
+    body = legacyBody,
     updatedLabel = document.updatedLabel,
     isPinned = document.isPinned,
     isArchived = document.isArchived,
@@ -115,7 +122,11 @@ private fun DocumentWithRanges.toModel() = Document(
     folder = document.folder,
     tags = document.tagsPayload.toTags(),
     updatedAtEpochMillis = document.updatedAtEpochMillis,
+    experience = document.experience.toExperience(),
 )
+    val decoded = document.r2Payload.takeIf(String::isNotBlank)?.let { runCatching { R2DocumentCodec.decode(it) }.getOrNull() }
+    return shell.copy(wordProcessingDocument = decoded ?: R2DocumentBridge.fromLegacy(shell))
+}
 
 private fun Document.toRecovery(isDeletion: Boolean = false) = RecoveryEntryEntity(
     documentId = id,
@@ -131,9 +142,16 @@ private fun Document.toRecovery(isDeletion: Boolean = false) = RecoveryEntryEnti
     tagsPayload = tags.sorted().joinToString(TAG_SEPARATOR),
     isDeletion = isDeletion,
     createdAtEpochMillis = updatedAtEpochMillis,
+    r2Payload = R2DocumentCodec.encode(currentR2()),
+    experience = experience.name,
 )
 
-private fun RecoveryEntryEntity.toModel() = Document(
+private fun Document.currentR2() = wordProcessingDocument
+    ?.takeIf { it.id == id && it.title == title && R2DocumentBridge.toLegacyBody(it) == body.normalized() }
+    ?: R2DocumentBridge.fromLegacy(this)
+
+private fun RecoveryEntryEntity.toModel(): Document {
+    val shell = Document(
     id = documentId,
     title = title,
     body = RichTextDocument(bodyText, RangePayload.decode(rangePayload)).normalized(),
@@ -145,7 +163,11 @@ private fun RecoveryEntryEntity.toModel() = Document(
     folder = folder,
     tags = tagsPayload.toTags(),
     updatedAtEpochMillis = createdAtEpochMillis,
+    experience = experience.toExperience(),
 )
+    val decoded = r2Payload.takeIf(String::isNotBlank)?.let { runCatching { R2DocumentCodec.decode(it) }.getOrNull() }
+    return shell.copy(wordProcessingDocument = decoded ?: R2DocumentBridge.fromLegacy(shell))
+}
 
 internal object RangePayload {
     fun encode(ranges: List<RichTextRange>): String = ranges.joinToString(";") { range ->
@@ -178,3 +200,5 @@ internal object RangePayload {
 
 private const val TAG_SEPARATOR = "\u001F"
 private fun String.toTags(): Set<String> = split(TAG_SEPARATOR).map(String::trim).filter(String::isNotEmpty).toSet()
+private fun String.toExperience(): DocumentExperience =
+    DocumentExperience.entries.firstOrNull { it.name == this } ?: DocumentExperience.Adaptive

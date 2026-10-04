@@ -1,43 +1,33 @@
-# Slate R1 roadmap
+# Slate roadmap
 
-R1 and R2 are distinct products. This roadmap tracks the focused R1 repository and does not treat R2 as R1's next version.
+This roadmap describes the unified product after the Notes and Forge codebases were consolidated in October 2026. It is ordered by product risk and user value, not by separate R1/R2 tracks.
 
-## Delivered in the September 2026 release
+## Delivered foundation
 
-### Foundation
+- One package, database, library, application, and monthly release line
+- Forge-derived interface for both Note and Forge documents
+- Context-aware Note/Forge classification based on document structure
+- Sticky promotion that protects Forge-only layout
+- Rich-note `.slx` and lossless word-processing `.slxf` packages
+- TXT, Markdown, DOCX, PDF, print, and share paths
+- Responsive phone, tablet, and expanded-window workspace
+- Local autosave, checkpoints, startup recovery, archive, trash, favorites, folders, tags, and search
+- Manual verified updater
+- CI architecture inspection for ARM64 and x86_64 native libraries
 
-- Native Kotlin/Compose app, Material 3 theme, adaptive shell, launcher identity, Android 12 minimum support.
-- Versioned rich-text document model and selection-aware editor commands.
-- Room-backed library, immediate recovery journal, debounced current snapshots, and interrupted-write restoration.
-- GitHub CI, unit tests, lint, debug artifacts, optimized signing workflow, checksums, and monthly release automation.
+## Next priorities
 
-### Editor and documents
+1. Add encrypted whole-library backup and restore with preview, conflict handling, and integrity checks.
+2. Complete folder, tag, saved-search, and version-history controls in the Forge start center.
+3. Add a continuous, low-chrome canvas for Note documents without creating a second UI architecture.
+4. Surface contextual Forge suggestions only when users approach page-layout actions.
+5. Add a guided import assistant for installations of the former standalone Forge package.
+6. Complete TalkBack labeling, focus order, large text, contrast, keyboard navigation, and touch-target audits.
+7. Benchmark large documents, image-heavy packages, pagination, startup, autosave, and low-memory recovery.
+8. Expand migration, corrupt-package, fuzz, round-trip, and updater security tests.
+9. Add optional protected documents and encrypted exports without weakening local-first behavior.
+10. Explore templates, backlinks, attachments, quick capture, and reminders after the core is stable.
 
-- Bold, italic, underline, H1, quote, links, lists, checklists, image references, simple table template, and find.
-- Session undo/redo and local version restoration.
-- Rename, duplicate, pin, favorite, archive, Trash, permanent delete, folders, tags, and search.
-- Compact system Back behavior and keyboard-safe formatting controls.
+## Release gate
 
-### Interchange and platform integration
-
-- Plain text, Markdown, and DOCX import/export with explicit R1 fidelity boundaries.
-- PDF export, Android printing, plain-text sharing, file associations, and scoped file access.
-- User-initiated native updater with checksum and signature enforcement.
-
-### Release polish
-
-- Flat Material 3 Expressive-inspired visual system replacing the early glass direction.
-- Phone and expanded-window refinement, system-bar fixes, compact image previews, and documentation.
-- Public `r1-2026-09` release with full install/update path.
-
-## R1 maintenance priorities
-
-- Respond to reproducible data-loss, recovery, import, export, navigation, and update issues first.
-- Expand tests for interrupted writes, database migration, malicious documents, long documents, and large libraries.
-- Continue accessibility review for screen readers, focus order, touch targets, keyboard navigation, and contrast.
-- Measure editor performance before increasing format or attachment complexity.
-- Improve fidelity only where it remains understandable, local-first, and dependable.
-
-## Outside the R1 product boundary
-
-Full desktop-class word processing, advanced page layout, broad architecture commitments, Googlebook Android specialization, and the complete multi-form-factor word-processing experience belong to Slate R2. R2 has its own purpose and monthly release line; it is not an R1 milestone or replacement.
+A public unified release requires a green GitHub Actions build, migration coverage for the existing Notes database, `.slx`/`.slxf` round-trip checks, architecture verification, signed upgrade testing, and manual smoke testing on compact and expanded layouts.

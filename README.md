@@ -1,118 +1,86 @@
-# Slate Notes by CORE
+# Slate by CORE
 
-Slate Notes (R1) is a private, local-first notes and document app for Android. It combines the speed of a notes app with document organization, rich-text tools, file interchange, recovery history, and a native update path—without requiring an account.
+Slate is a private, local-first Android writing app that adapts from quick notes to complete word-processing documents. One installation combines the focused Slate Notes workflow with Slate Forge's ribbon workspace, page-layout engine, and large-screen support.
 
-Visit the [Slate website](https://slate.iiankehn.com/) to compare the distinct R1 and R2 products, open their repositories, and find official downloads.
-
-## Get Slate Notes
+## Get Slate
 
 - [Download the latest signed APK](https://github.com/iiankehn/slate-android/releases/latest)
-- Requires Android 12 or newer (API 31+)
+- Android 12 or newer
+- ARM64 and x86_64 Android devices
 - Package: `com.iiankehn.slate`
 
-When installing the APK for the first time, Android may ask you to allow installs from the app that opened the download. Future releases can be installed from **Editor menu → Check for updates**. Android always shows the final installation confirmation.
+Slate requires no account and includes no ads, analytics, telemetry, cloud sync, or background update polling.
+
+## One adaptive workspace
+
+Every new file starts in **Adaptive** mode:
+
+- ordinary text and rich formatting stay a lightweight **Note**;
+- page setup, sections, headers, footers, structured tables, or forced page breaks promote it to **Forge**;
+- document length alone never changes its type;
+- once a document requires Forge features, it remains Forge so its layout cannot be lost.
+
+The same Forge-derived interface is used for both experiences. The library labels each document as Note or Forge, while search, favorites, folders, tags, archive, trash, and recovery remain unified.
 
 ## Highlights
 
-### Writing and editing
+- Material 3 Expressive-inspired ribbon workspace for phones, tablets, Googlebook Android devices, and desktop-sized windows
+- Rich text, lists, checklists, links, images, tables, find, undo, redo, and keyboard shortcuts
+- Sections, page setup, headers and footers, page breaks, and paginated layout
+- Local Room database with autosave, recovery checkpoints, and version history
+- Import from `.slx`, `.slxf`, TXT, Markdown, and DOCX
+- Export to `.slx`, `.slxf`, TXT, Markdown, DOCX, and PDF; system share and print support
+- Manual native updater with SHA-256 verification and Android signature enforcement
+- CI-built ARM64 and x86_64-compatible APKs
 
-- Selection-aware bold, italic, underline, H1, quote, and link formatting
-- Bulleted lists, checklists, image references, and simple text tables
-- Find in document, editor undo/redo, and hardware-keyboard shortcuts
-- Keyboard-safe formatting dock that remains available while typing
-- Continuous local saving with a visible saved/saving indicator
+## File formats
 
-### Document library
+| Format | Purpose |
+| --- | --- |
+| `.slx` | Portable rich-note document for Note-compatible content |
+| `.slxf` | Lossless Slate document for complete Forge page and layout features |
 
-- Create, rename, duplicate, pin, favorite, archive, trash, restore, and permanently delete documents
-- Organize with folders and tags
-- Search titles, document text, folders, and tags
-- Separate Documents, Favorites, Archive, and Trash views
-- Up to 30 local recovery checkpoints per document with version restoration
+Slate chooses the appropriate experience from document structure when importing. Exporting to `.slx` can simplify Forge-only layout, but never changes the original `.slxf` document.
 
-### Files and Android integration
+## Upgrading and migration
 
-- Import `.slx`, plain text, Markdown, and DOCX files
-- Export `.slx`, plain text, Markdown, DOCX, and PDF
-- Continue a rich-text `.slx` document directly in Slate Forge with embedded media intact
-- Share through Android, print through the system print service, and open supported file associations
-- Scoped file access without broad storage permission
+Existing Slate Notes installations upgrade in place because Slate keeps the package ID and signing identity. The Room schema migrates existing documents into the unified library.
 
-### Native Android experience
-
-- Native Kotlin and Jetpack Compose
-- Flat Material 3 Expressive-inspired interface with Slate's Midnight and CORE-blue identity
-- Compact phone navigation plus an adaptive two-pane layout for larger windows
-- System Back returns from the phone editor to the library before exiting
-- Formatting controls remain visible when the software keyboard opens
-
-### Privacy and updates
-
-- Writing is stored in an app-private Room database on the device
-- No account, ads, analytics, telemetry, diagnostics upload, contacts, location, microphone, or camera access
-- Network access is used only after the user selects **Check for updates**
-- Update APKs are checked against the release SHA-256 manifest; Android also enforces the signing certificate
-- No background update polling
-
-See [Features](docs/FEATURES.md), the [User guide](docs/USER_GUIDE.md), and the full [R1 release notes](RELEASE_NOTES.md).
-
-## Slate Notes and Slate Forge
-
-Slate Notes and Slate Forge are distinct products for different purposes. R1 and R2 remain their internal identifiers, not sequential upgrades or release increments.
-
-- **Slate Notes (R1)** is the focused, local-first notes and document experience in this repository.
-- **Slate Forge (R2)** is the separate full word-processing product intended for broader form factors, Googlebook Android support, and ARM64/x86_64 targets.
-
-Each product follows its own monthly release line.
+The former standalone Slate Forge application used a different Android package. Export its documents as `.slxf` or `.slx`, then import them into Slate. Its repository remains available as historical source until migration is complete.
 
 ## Build and verify
 
-The project is pinned to JDK 17, Gradle 8.13, Android Gradle Plugin 8.13.2, Kotlin 2.3.10, and compile/target SDK 36.
-
-With a compatible Android SDK installed:
+GitHub Actions is the canonical build environment. For local development:
 
 ```bash
-gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
+./gradlew test lint assembleDebug
 ```
 
-GitHub Actions runs that verification for pushes to `main` and `beta`, and for pull requests. Successful CI runs retain a debug APK artifact. The monthly release workflow builds the optimized signed APK and its checksum/update manifest.
+Release signing material belongs only in GitHub Actions secrets. See [Release process](docs/RELEASING.md) for the monthly build flow.
 
 ## Documentation
 
-| Document | Purpose |
-| --- | --- |
-| [Release notes](RELEASE_NOTES.md) | Complete R1 release summary, installation, fixes, and limitations |
-| [Features](docs/FEATURES.md) | Detailed capability and format-support reference |
-| [User guide](docs/USER_GUIDE.md) | Installation, everyday use, shortcuts, files, recovery, and updates |
-| [Product brief](docs/PRODUCT.md) | Product scope, principles, and the R1/R2 boundary |
-| [Architecture](docs/ARCHITECTURE.md) | UI, state, persistence, format, and updater design |
-| [Slate formats](docs/SLATE_FORMATS.md) | Shared `.slx`, Forge-native `.slxf`, compatibility, security, and handoff contract |
-| [Privacy](docs/PRIVACY.md) | Data handling, permissions, network behavior, and security baseline |
-| [Visual identity](https://github.com/iiankehn/slate-r2-android/blob/main/docs/BRAND.md) | Shared Slate family mark, colors, and usage rules |
-| [Releasing](docs/RELEASING.md) | Signing, monthly workflow, version codes, and publication process |
-| [Roadmap](docs/ROADMAP.md) | Completed R1 milestones and future maintenance areas |
-| [Contributing](CONTRIBUTING.md) | Development workflow and pull-request expectations |
-| [Security](SECURITY.md) | Private vulnerability-reporting guidance |
+- [Product definition](docs/PRODUCT.md)
+- [Feature reference](docs/FEATURES.md)
+- [User guide](docs/USER_GUIDE.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Slate formats](docs/SLATE_FORMATS.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Privacy](docs/PRIVACY.md)
+- [Release process](docs/RELEASING.md)
+- [Release notes](RELEASE_NOTES.md)
 
-## Report a problem or request a feature
+## Report an issue
 
-Use [GitHub Issues](https://github.com/iiankehn/slate-android/issues/new/choose) and select the appropriate form.
+Use the repository's [issue forms](https://github.com/iiankehn/slate-android/issues/new/choose). Include the Slate version, Android version, device/form factor, document format, and exact reproduction steps. Remove private writing, personal data, credentials, signing material, and sensitive documents before attaching anything.
 
-For bugs, include:
-
-- Android version, device/model, and phone/tablet/foldable form factor
-- The Slate release and installation source
-- Exact reproduction steps, expected result, and actual result
-- Whether the problem risks document loss or blocks access to a document
-- Screenshots or a short recording when useful, after removing private writing and personal information
-
-Do not post private documents, signing material, credentials, or exploit details in a public issue. Follow [SECURITY.md](SECURITY.md) for vulnerabilities.
+Security-sensitive reports should follow [SECURITY.md](SECURITY.md).
 
 ## Product principles
 
-1. Writing never depends on a connection or account.
-2. The device copy is authoritative.
-3. Autosave and recovery are core features.
-4. Common file formats stay at the boundary; Slate's versioned document model remains independent.
-5. No telemetry, advertising identifiers, behavioral analytics, or experiments.
-6. Phone, tablet, keyboard, and touch behavior are designed together.
+- Local-first by default
+- One coherent app, not parallel product forks
+- Notes remain fast; advanced layout appears when needed
+- Open interchange at the edges, lossless Slate format at the center
+- No silent network activity
+- Accessible across phone, tablet, keyboard, mouse, and touch

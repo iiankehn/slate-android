@@ -24,7 +24,7 @@ data class SlateUpdate(
 object SlateUpdater {
     private const val LatestReleaseUrl =
         "https://api.github.com/repos/iiankehn/slate-android/releases/latest"
-    private const val UpdateManifestName = "slate-r1-update.json"
+    private const val UpdateManifestName = "slate-update.json"
     private const val MaxJsonBytes = 64 * 1024
     private const val MaxApkBytes = 128L * 1024L * 1024L
 
@@ -69,8 +69,8 @@ object SlateUpdater {
 
     suspend fun download(context: Context, update: SlateUpdate): File = withContext(Dispatchers.IO) {
         val directory = File(context.cacheDir, "updates").apply { mkdirs() }
-        val partial = File(directory, "slate-r1-update.apk.part")
-        val complete = File(directory, "slate-r1-update.apk")
+        val partial = File(directory, "slate-update.apk.part")
+        val complete = File(directory, "slate-update.apk")
         partial.delete()
         complete.delete()
 
@@ -145,7 +145,7 @@ object SlateUpdater {
             readTimeout = 30_000
             instanceFollowRedirects = true
             setRequestProperty("Accept", "application/vnd.github+json")
-            setRequestProperty("User-Agent", "Slate-R1-Updater")
+            setRequestProperty("User-Agent", "Slate-Updater")
             connect()
             require(this.url.protocol == "https") { "The update redirected to an insecure connection." }
             if (responseCode !in 200..299) {

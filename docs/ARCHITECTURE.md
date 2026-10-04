@@ -1,78 +1,47 @@
 # Architecture
 
-Slate R1 is a single-activity Android application built with Kotlin and Jetpack Compose. It uses unidirectional data flow: Compose renders observable state from `SlateViewModel`, UI actions update that state, and `DocumentRepository` persists normalized documents through Room.
+Slate is a single-activity Kotlin and Jetpack Compose application. It uses unidirectional data flow: Compose renders state from `SlateViewModel`, actions update that state, and `DocumentRepository` persists normalized documents through Room.
 
 ## Runtime layers
 
-| Layer | Current responsibility |
+| Layer | Responsibility |
 | --- | --- |
-| UI | Adaptive document library, editor, formatting/actions, dialogs, Android file pickers, and update prompts |
-| State holder | Library ordering, document operations, editor state, autosave scheduling, and history loading |
-| Model | Version-independent document text plus normalized rich-text ranges |
-| Data | Room entities, DAO, current snapshots, recovery checkpoints, and interrupted-write recovery |
-| Format adapters | Plain text, Markdown subset, DOCX subset, PDF generation, printing, and sharing |
-| Updater | Published-release discovery, version comparison, APK download, SHA-256 verification, and installer handoff |
+| UI | Forge-derived start center, responsive editor, ribbon, dialogs, file pickers, and update prompts |
+| State | Library operations, editor sessions, autosave, history, import/export, and adaptive classification |
+| Models | Lightweight rich text plus device-independent word-processing sections and blocks |
+| Editing | Immutable commands, selection-aware transforms, undo/redo, and flat-text adaptation |
+| Layout | Page geometry and pagination independent of display form factor |
+| Data | Room entities, snapshots, recovery checkpoints, and schema migrations |
+| Formats | `.slx`, `.slxf`, TXT, Markdown, DOCX, PDF, printing, and sharing |
+| Updater | Release discovery, version comparison, bounded download, SHA-256 verification, and installer handoff |
+
+## Adaptive document state
+
+Documents persist an experience value: `Adaptive`, `Notes`, or `Forge`. `DocumentExperiencePolicy` derives the visible mode from document structure. Adaptive content displays as Note until it contains an advanced feature; publishing such an edit persists Forge. Explicit or promoted Forge state is not automatically downgraded.
+
+This policy is semantic, not heuristic: it does not inspect length, word count, screen size, or device class.
+
+## Persistence and migration
+
+- The app retains package `com.iiankehn.slate` and the existing Notes database.
+- Room schema version 4 adds the experience field after the prior rich-document payload migration.
+- Every edit creates a recovery checkpoint; the current snapshot saves after a short idle delay.
+- Startup can recover a newer checkpoint than the stored snapshot.
+- History is bounded to the newest 30 checkpoints per document.
+- Android automatic backup and device transfer are disabled.
+
+Uninstalling removes app-private documents. Users should export or back up documents they cannot replace.
 
 ## UI and navigation
 
-`MainActivity` owns the Compose content and handles supported Android `VIEW`/`EDIT` file intents. `SlateApp` switches at 840 dp:
+`MainActivity` owns Compose content and supported Android `VIEW`/`EDIT` intents. Compact windows move between the start center and editor; expanded windows use the same responsive workspace. Android Back returns from an open document before exiting. IME padding keeps editor controls visible above the software keyboard.
 
-- compact windows show either the library or editor;
-- expanded windows show a 360 dp library pane next to the editor;
-- Android Back returns from the compact editor to the library before the activity exits;
-- `imePadding` keeps the formatting dock above the software keyboard.
+## File and network boundaries
 
-Material dialogs and popup menus consume Back before the screen-level handler.
+The Storage Access Framework supplies user-selected content URIs; Slate requests no broad storage permission. Imports are bounded and parsed off the UI thread. Package codecs validate entry counts, sizes, paths, and checksums before committing content.
 
-## Document model
+Slate makes no routine network requests. The only built-in network path is the user-triggered update check against the official GitHub repository. Cleartext traffic is disabled.
 
-`RichTextDocument` stores text and a list of `RichTextRange` values. A range contains a style, start/end offsets, and optional data such as a URL or image URI. Normalization clamps invalid offsets, removes empty ranges, removes duplicates, and produces stable ordering.
+## Build architecture
 
-Supported internal styles are bold, italic, underline, H1, link, quote, image, and table. Bullets and checklists are represented as line prefixes.
-
-The internal model is independent of Compose spans and external file formats. Text edits remap range offsets so formatting survives ordinary insertion and deletion.
-
-## Persistence and recovery
-
-- Current document metadata, text, and style ranges are stored in an app-private Room database.
-- Each edit creates a recovery checkpoint immediately.
-- The current snapshot is saved after a 450 ms idle delay.
-- Recovery history is capped at the newest 30 checkpoints per document.
-- Startup recovery restores a checkpoint when it is newer than the stored snapshot.
-- The library is exposed as a `Flow` and sorted by trash/archive status, pin, favorite, and update time.
-
-Android automatic backup and device transfer are disabled, so app data is not silently copied to cloud backup. Uninstalling Slate removes its app-private documents; users should export anything they need before uninstalling.
-
-## File boundaries
-
-The Storage Access Framework supplies user-selected imports, exports, and image URIs. Slate does not request broad storage or media access.
-
-- Text and Markdown imports are limited to 25 MB.
-- DOCX import is limited to 25 MB, 2,000 ZIP entries, and 20 MB of decoded `word/document.xml`.
-- Imports run off the UI thread and are committed only after parsing succeeds.
-- Export writes through a user-selected content URI.
-- Sharing sends plain text through the Android share sheet.
-- PDF output is generated with Android's `PdfDocument`; printing uses the system print service.
-
-DOCX is an interchange format, not Slate's source of truth. See [FEATURES.md](FEATURES.md) for current fidelity boundaries.
-
-## Native updater
-
-The updater is manual and has no background worker:
-
-1. The user selects **Check for updates**.
-2. Slate reads the latest published GitHub release.
-3. It downloads `slate-r1-update.json` and compares its internal version code.
-4. It downloads only the listed official-repository APK, with a 128 MB safety limit.
-5. It verifies SHA-256 before exposing the file through a narrowly scoped `FileProvider`.
-6. Android's package installer verifies the application signature and requests final confirmation.
-
-Cleartext traffic is disabled. Draft and prerelease artifacts are not the normal update channel.
-
-## Dependency policy
-
-- Prefer AndroidX and Android platform APIs.
-- Review runtime dependencies for privacy, maintenance, licensing, and attack surface.
-- Do not add analytics or crash-reporting SDKs.
-- Pin build versions and verify changes through CI.
-- Keep signing material exclusively in GitHub Actions secrets.
+GitHub Actions is the canonical environment. If dependencies package native libraries, CI verifies both `arm64-v8a` and `x86_64`; pure JVM/Android bytecode is architecture-neutral. Production signing material exists only as encrypted repository secrets.

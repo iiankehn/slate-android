@@ -1,44 +1,41 @@
-# Slate product brief
+# Product definition
 
-## Positioning
+Slate is one adaptive Android writing product. It replaces the former plan for separate Slate Notes and Slate Forge applications with a shared library, editor, document model, formats, and release line.
 
-Slate by CORE is one calm writing space for quick notes, longer drafts, and complete documents. It opens without an account, saves continuously, and keeps the device copy authoritative.
+## Product promise
 
-Slate R1 is not a reduced preview of R2. R1 and R2 are distinct products with separate monthly release lines:
+Open Slate and begin writing immediately. The workspace stays suitable for a note until the document actually uses page-layout structure, then preserves the complete Forge model without asking the user to choose an app first.
 
-- **R1** is the focused local-first notes and document app maintained in this repository.
-- **R2** is the separate full word processor intended for broader form factors, Googlebook Android support, and ARM64/x86_64 targets.
+## Experiences
 
-The designations do not represent increments, generations, upgrades, or replacements.
+| Experience | Intended work | Selection rule |
+| --- | --- | --- |
+| Note | Quick notes, lists, journals, research, and ordinary rich text | Default for adaptive documents without advanced structure |
+| Forge | Letters, reports, manuscripts, and page-structured documents | Explicitly selected or required by advanced structure |
 
-## R1 product promise
+Advanced structure means multiple sections, non-default page setup, headers or footers, non-continuous section starts, structured tables, or forced page breaks. Length and word count are deliberately excluded.
 
-1. Writing remains available without a connection or account.
-2. Local saving and recovery are visible, dependable product features.
-3. Document organization stays simple enough for notes and useful enough for sustained work.
-4. Common file formats provide entry and exit paths without defining Slate's internal model.
-5. The interface follows native Android behavior across compact and expanded windows.
-6. Privacy does not depend on analytics opt-outs because Slate does not ship analytics.
+Promotion to Forge is sticky. Slate will not silently downgrade a file and risk discarding layout information.
 
-## Implemented scope
+## Shared foundation
 
-- Create, edit, duplicate, rename, pin, favorite, archive, trash, restore, and permanently delete documents.
-- Headings, bold, italic, underline, links, lists, checklists, quotes, image references, and simple text tables.
-- Folders, tags, filtered library views, and full-library search.
-- Autosave, interrupted-write recovery, editor undo/redo, and local version history.
-- Plain-text, Markdown, and DOCX import/export; PDF export and printing.
-- Android file associations, share sheet, Storage Access Framework integration, and scoped image access.
-- Compact phone navigation and an adaptive two-pane layout for wider Android windows.
-- Flat Material 3 Expressive-inspired UI with the Midnight/CORE-blue identity.
-- User-initiated, checksum-verified GitHub updates with Android signature enforcement.
+- one Android application and package: `com.iiankehn.slate`;
+- one library and Room database;
+- one Forge-derived responsive interface;
+- one adaptive document policy;
+- `.slx` for portable rich notes and `.slxf` for full-fidelity documents;
+- one monthly release line using calendar and commit-derived versions;
+- ARM64 and x86_64 compatibility;
+- local-only storage unless the user explicitly imports, exports, shares, prints, or checks for updates.
 
-## Deliberate R1 boundaries
+## Supported form factors
 
-- No mandatory account or cloud-only documents.
-- No advertising, engagement mechanics, analytics, diagnostics upload, or experiments.
-- No real-time collaboration, comments, or tracked changes.
-- No desktop-class page layout, advanced pagination, mail merge, or Word feature parity.
-- No promise that every external formatting construct will round-trip unchanged.
-- No background update polling.
+Slate targets Android 12+ phones, tablets, large and resizable Android windows, Googlebook Android environments, keyboard/mouse workflows, and both portrait and landscape use.
 
-See [FEATURES.md](FEATURES.md) for exact implemented behavior and format fidelity.
+## Non-goals
+
+- Recreating two independently installed products
+- Choosing Forge merely because a document is long
+- Requiring an account or proprietary cloud service
+- Advertising exact Microsoft Word layout parity
+- Automatic background update checks

@@ -1,59 +1,34 @@
-# Contributing to Slate R1
+# Contributing to Slate
 
-Thank you for helping improve Slate. Contributions should preserve R1's focused, private, local-first product scope.
+Slate is one adaptive Android writing app. Contributions should strengthen the shared foundation instead of recreating separate Notes and Forge products.
 
-## Start with an issue
+## Before opening a change
 
-- Use the [bug report form](https://github.com/iiankehn/slate-android/issues/new?template=bug_report.yml) for reproducible defects.
-- Use the [feature request form](https://github.com/iiankehn/slate-android/issues/new?template=feature_request.yml) for R1 product proposals.
-- Search open and closed issues before filing a duplicate.
-- Do not include private writing, credentials, signing data, or security exploit details in public issues.
+- Search existing issues and the roadmap.
+- Keep behavior local-first and avoid unnecessary permissions or network paths.
+- Preserve the Notes package ID, upgrade path, and database migrations.
+- Keep Note/Forge classification structural; never use document length as a signal.
+- Avoid silently downgrading Forge content.
+- Discuss large format, schema, dependency, or product changes in an issue first.
 
-Security vulnerabilities follow [SECURITY.md](SECURITY.md).
-
-## Product boundary
-
-Slate R1 and Slate R2 are separate products, not sequential releases. Changes in this repository should fit the focused R1 notes/document experience. Full desktop-class word processing, Googlebook-specific expansion, and broad ARM64/x86_64 product work belong to the separate R2 line.
-
-## Development setup
-
-Required baseline:
-
-- JDK 17
-- Gradle 8.13
-- Android SDK 36
-- An Android 12+ device or emulator for relevant manual checks
-
-Run the same core verification as CI:
+## Build and test
 
 ```bash
-gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
+./gradlew test lint assembleDebug
 ```
 
-## Change expectations
+GitHub Actions is canonical and also checks native-library architecture coverage. Add focused tests for editing commands, migration rules, codecs, classification, and layout behavior when changing those areas.
 
-- Keep the device copy authoritative and writing functional offline.
-- Do not add telemetry, advertising, crash-reporting, account, or engagement SDKs.
-- Avoid broad Android permissions; use scoped platform APIs.
-- Add or update tests for document models, persistence encoding, and format behavior.
-- Document user-visible behavior and fidelity limitations.
-- Keep Material 3 UI flat, adaptive, keyboard-safe, and consistent with the Midnight/CORE-blue identity.
-- Preserve compact Back navigation and expanded two-pane behavior.
-- Treat imported files and update metadata as untrusted input with explicit limits and validation.
+## Code expectations
+
+- Kotlin and Compose code should follow existing unidirectional state flow.
+- Keep models independent of device dimensions and Compose-specific spans.
+- Treat file input as untrusted and preserve existing size/path/checksum limits.
+- Make compact, expanded, keyboard, mouse, touch, and accessibility behavior explicit.
+- Never commit keystores, credentials, production APKs, or private documents.
 
 ## Pull requests
 
-A pull request should include:
+Describe the user-visible outcome, implementation boundaries, tests, migration implications, and known limitations. Screenshots are useful for visual changes but must contain no private content.
 
-- a clear problem statement and the chosen behavior;
-- linked issues when applicable;
-- tests or an explanation of why existing coverage is sufficient;
-- screenshots or recordings for meaningful UI changes, with private content removed;
-- documentation updates for user-visible features or limitations;
-- confirmation that unit tests, lint, and debug assembly pass.
-
-Keep commits focused. Never commit release keystores, passwords, tokens, local SDK paths, generated APKs, or private test documents.
-
-## Release changes
-
-Only GitHub Actions should receive signing secrets. The monthly release workflow verifies, shrinks, signs, checksums, and stages R1 artifacts. See [docs/RELEASING.md](docs/RELEASING.md).
+By contributing, you agree that your work is provided under the repository's license.

@@ -20,6 +20,8 @@ data class DocumentEntity(
     val folder: String,
     val tagsPayload: String,
     val updatedAtEpochMillis: Long,
+    val r2Payload: String,
+    val experience: String,
 )
 
 @Entity(
@@ -71,4 +73,6 @@ data class RecoveryEntryEntity(
     val tagsPayload: String,
     val isDeletion: Boolean,
     val createdAtEpochMillis: Long,
+    val r2Payload: String,
+    val experience: String,
 )

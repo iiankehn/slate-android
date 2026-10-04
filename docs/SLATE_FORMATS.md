@@ -1,54 +1,37 @@
 # Slate document formats
 
-Slate uses two complementary, local-first document packages. Format versions are independent of the apps' monthly releases and commit-style build identifiers.
+Slate uses two related packages so quick notes remain portable while full word-processing structure remains lossless.
 
-## `.slx` — shared Slate document
+## `.slx` — portable rich note
 
-`.slx` is the interoperable rich-text format for **Slate Notes (R1)** and **Slate Forge (R2)**. It is the handoff format and the safest choice when a document must remain editable in either product.
+`.slx` stores note-compatible text, normalized rich ranges, metadata, and checked assets in a bounded package. It is the preferred editable format for notes and interchange that does not require page layout.
 
-Version 1 preserves:
+Typical content includes headings, emphasis, quotes, links, lists, checklists, and portable media references. Importing an `.slx` file normally classifies it as Note.
 
-- UTF-8 document text;
-- bold, italic, underline, headings, quotations, links, tables and image markers;
-- normalized formatting ranges and link/image metadata;
-- embedded media with MIME type, extension and SHA-256 checksum;
-- source product, source document identifier and revision metadata; and
-- creation/update timestamps and compatibility warnings.
+## `.slxf` — full Slate document
 
-An `.slx` file is a bounded ZIP package containing `manifest.bin`, `document.bin`, and optional `assets/` entries. Importers reject unsafe paths, duplicate entries, oversized expanded content, unsupported versions and failed asset checksums.
+`.slxf` stores the complete word-processing model, including sections, page setup, headers, footers, section starts, structured blocks, and page-break behavior. Importing an `.slxf` file classifies it as Forge.
 
-Slate Notes can hand an `.slx` document directly to Slate Forge with **Continue in Slate Forge**. The transfer uses an explicit package-targeted Android intent, a narrow `FileProvider` cache path, and temporary read permission. No shared database, account, server, telemetry or cloud service is involved.
+The package contains a manifest, the encoded document model, and optional checked assets. Paths, entry counts, decoded sizes, and checksums are validated before content is accepted.
 
-## `.slxf` — Slate Forge document
+## Adaptive selection
 
-`.slxf` is the lossless native format for **Slate Forge**. It retains the complete Forge model:
+The extension is an interchange promise, while the in-app label is derived from actual structure. New documents begin Adaptive. Slate presents them as Note until advanced structure requires Forge, then persists Forge to prevent accidental loss. Text length has no role in classification.
 
-- pages, custom page sizes, orientation and margins;
-- sections and section-start behavior;
-- multiple columns and column spacing;
-- named paragraph styles and character formatting;
-- nested bulleted, numbered and checklist paragraphs;
-- tables with merged-cell metadata;
-- headers and footers;
-- inline and floating images with wrapping and offsets; and
-- document author, subject, keywords and timestamps.
+## Conversion
 
-An `.slxf` package contains `manifest.bin`, `forge.bin`, and optional checked `assets/` entries. Slate Forge can also export a compatible `.slx` copy. Features outside the shared model are simplified only in that exported copy; the original `.slxf` document is never modified.
+- Forge to `.slxf`: lossless native export.
+- Note to `.slx`: portable native export.
+- Forge to `.slx`: creates a compatible copy and may simplify page-only features.
+- `.slx` to Forge: Slate can promote the imported document when advanced features are added.
 
-## Compatibility contract
+Conversions never silently modify the source document.
 
-| Direction | Behavior |
-|---|---|
-| Notes `.slx` → Forge | Rich text and embedded assets import without conversion through DOCX. |
-| Forge → `.slx` | Shared content is preserved; Forge-only page layout is intentionally omitted. |
-| Forge `.slxf` → Forge | Complete, lossless round trip. |
-| Forge `.slxf` → Notes | Not opened directly; export an `.slx` compatibility copy first. |
+## Other formats
 
-Readers accept known older schema versions and reject unknown newer versions instead of guessing. New optional capabilities should be added without reinterpreting existing fields.
+TXT and Markdown prioritize readable text. DOCX provides practical exchange with common word processors but may simplify advanced layout. PDF and printing produce presentation output rather than editable Slate source.
 
-## MIME types
+## Safety limits
 
-- `.slx`: `application/vnd.core.slate.slx`
-- `.slxf`: `application/vnd.core.slate.slxf`
-
+Codecs bound total bytes, individual text values, collection sizes, archive entries, decoded XML, and asset paths. Imports complete parsing before they enter the library. A malformed or oversized package should fail without replacing existing content.
 

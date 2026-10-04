@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible Slate R1 problem
+description: Report a reproducible Slate problem
 title: "[Bug]: "
 labels:
   - bug
@@ -7,13 +7,13 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you for helping improve Slate R1. Remove private writing, personal information, credentials, and signing data before submitting.
+        Thank you for helping improve Slate. Remove private writing, personal information, credentials, and signing data before submitting.
   - type: input
     id: release
     attributes:
       label: Slate release
       description: Find the release on the APK download page or include the release month.
-      placeholder: Slate R1 — 2026-09
+      placeholder: Slate 2026.10+abcdef0
     validations:
       required: true
   - type: input

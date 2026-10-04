@@ -1,26 +1,23 @@
 # Security policy
 
-## Supported release
+## Supported version
 
-The latest published Slate R1 release receives security fixes. Older APKs should be updated through **Check for updates** or the [latest GitHub release](https://github.com/iiankehn/slate-android/releases/latest).
+The latest published unified Slate release receives security fixes. Older APKs should be updated through **Check for updates** or the [latest GitHub release](https://github.com/iiankehn/slate-android/releases/latest).
 
-## Report a vulnerability privately
+## Report a vulnerability
 
-Do not post exploit details, malicious files, credentials, signing information, private documents, or sensitive device data in a public issue.
+Do not open a public issue for a vulnerability that could expose documents, bypass package validation, compromise update integrity, or disclose signing information. Use GitHub's private vulnerability reporting for `iiankehn/slate-android` when available; otherwise contact the repository owner privately through their published GitHub contact channel.
 
-Use GitHub's **Security → Report a vulnerability** option for this repository when available. Include:
+Include affected versions, Android version, impact, reproduction steps, and the smallest safe proof of concept. Do not include real user documents, credentials, keystores, or signing passwords.
 
-- affected Slate release and Android version;
-- device or emulator architecture and form factor;
-- impact and realistic attack scenario;
-- minimal reproduction steps or a proof of concept;
-- whether user interaction or a crafted import/update file is required;
-- suggested mitigation, if known.
+## Security boundaries
 
-If private vulnerability reporting is unavailable, open a public issue titled **Security contact request** with no technical details and ask the maintainer to establish a private channel.
+- Documents are local app-private data, not end-to-end encrypted cloud data.
+- `.slx`, `.slxf`, DOCX, Markdown, TXT, and image inputs are untrusted.
+- Importers enforce size, count, path, and checksum limits where applicable.
+- The updater accepts only declared assets from the official repository, verifies SHA-256, and relies on Android signature checks before replacement.
+- There is no automatic background update or telemetry path.
 
-## Scope
+## Disclosure
 
-Useful reports include data-loss or unauthorized-access paths, malicious import handling, update verification bypasses, file-provider exposure, permission misuse, signing/release-chain problems, and ways to capture private document content despite Slate's protections.
-
-General bugs and feature requests should use the normal [issue forms](https://github.com/iiankehn/slate-android/issues/new/choose).
+Please allow reasonable time to investigate and publish a fix before public disclosure. Confirmed reports will be credited when the reporter wants attribution and disclosure is safe.

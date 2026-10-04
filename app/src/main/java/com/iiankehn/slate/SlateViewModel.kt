@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.iiankehn.slate.data.DocumentRepository
 import com.iiankehn.slate.model.Document
+import com.iiankehn.slate.model.DocumentExperience
 import com.iiankehn.slate.model.DocumentTitlePolicy
 import com.iiankehn.slate.model.RichTextDocument
 import com.iiankehn.slate.io.ImportedDocument
+import com.iiankehn.slate.io.R2DocumentBridge
 import java.util.UUID
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -59,26 +61,30 @@ class SlateViewModel(
             title = "",
             body = RichTextDocument(),
             updatedLabel = "Just now",
-        )
+        ).withSynchronizedR2()
         updateLocal(document)
         scheduleSave(document, delayMillis = 0)
         return document
     }
 
     fun importDocument(imported: ImportedDocument): Document {
+        val id = UUID.randomUUID().toString()
+        val importedR2 = imported.wordProcessingDocument?.copy(id = id, title = imported.title)
         val document = Document(
-            id = UUID.randomUUID().toString(),
+            id = id,
             title = imported.title,
             body = imported.body,
             updatedLabel = "Imported now",
-        )
+            wordProcessingDocument = importedR2,
+            experience = imported.suggestedExperience,
+        ).withSynchronizedR2()
         updateLocal(document)
         scheduleSave(document, delayMillis = 0)
         return document
     }
 
     fun updateDocument(document: Document) {
-        val changed = document.copy(
+        val changed = document.withSynchronizedR2().copy(
             updatedLabel = "Just now",
             updatedAtEpochMillis = nextTimestamp(document),
         )
@@ -96,7 +102,7 @@ class SlateViewModel(
             isArchived = false,
             isDeleted = false,
             updatedAtEpochMillis = nextTimestamp(source),
-        )
+        ).withSynchronizedR2(force = true)
         updateLocal(duplicate)
         scheduleSave(duplicate, delayMillis = 0)
         return duplicate
@@ -150,6 +156,8 @@ class SlateViewModel(
             current.copy(
                 title = version.title,
                 body = version.body,
+                wordProcessingDocument = version.wordProcessingDocument,
+                experience = version.experience,
                 folder = version.folder,
                 tags = version.tags,
             ),
@@ -233,27 +241,7 @@ class SlateViewModel(
     private companion object {
         const val AUTOSAVE_DELAY_MILLIS = 450L
 
-        val starterDocuments = listOf(
-            Document(
-                "welcome",
-                "Welcome to Slate",
-                RichTextDocument.plain("A calm place for notes, drafts, and complete documents.\n\nEverything starts on your device."),
-                "Just now",
-                true,
-            ),
-            Document(
-                "ideas",
-                "Project ideas",
-                RichTextDocument.plain("Build the smallest useful version first.\nKeep the editor fast.\nRespect the writer's privacy."),
-                "12 min ago",
-            ),
-            Document(
-                "meeting",
-                "Meeting notes",
-                RichTextDocument.plain("Agenda\n\n• Current work\n• Decisions\n• Next steps"),
-                "Yesterday",
-            ),
-        )
+        val starterDocuments = emptyList<Document>()
     }
 }
 
@@ -269,3 +257,12 @@ private fun nextTimestamp(document: Document): Long = maxOf(
     System.currentTimeMillis(),
     document.updatedAtEpochMillis + 1,
 )
+
+private fun Document.withSynchronizedR2(force: Boolean = false): Document {
+    val current = wordProcessingDocument
+    val contentMatches = current != null && R2DocumentBridge.toLegacyBody(current) == body.normalized()
+    val r2 = if (!force && contentMatches) current.copy(id = id, title = title) else {
+        R2DocumentBridge.fromLegacy(copy(wordProcessingDocument = null))
+    }
+    return copy(wordProcessingDocument = r2)
+}
