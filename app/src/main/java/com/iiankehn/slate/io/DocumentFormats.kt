@@ -13,6 +13,7 @@ data class ImportedDocument(
     val title: String,
     val body: RichTextDocument,
     val warnings: List<String> = emptyList(),
+    val slxAssets: List<SlxAsset> = emptyList(),
 )
 
 object DocumentFormats {
@@ -26,6 +27,22 @@ object DocumentFormats {
     }
 
     fun exportText(body: RichTextDocument): ByteArray = body.text.toByteArray(Charsets.UTF_8)
+
+    fun importSlx(bytes: ByteArray): ImportedDocument {
+        val document = SlxCodec.decode(bytes)
+        return ImportedDocument(document.title, document.body, document.warnings, document.assets)
+    }
+
+    fun exportSlx(document: com.iiankehn.slate.model.Document, assets: List<SlxAsset> = emptyList()): ByteArray = SlxCodec.encode(
+        SlxDocument(
+            title = document.title,
+            body = document.body,
+            sourceDocumentId = document.id,
+            sourceRevision = document.updatedAtEpochMillis,
+            updatedAtEpochMillis = document.updatedAtEpochMillis,
+            assets = assets,
+        ),
+    )
 
     fun importMarkdown(bytes: ByteArray, fallbackTitle: String): ImportedDocument {
         require(bytes.size <= MAX_DOCUMENT_BYTES) { "Document is larger than 25 MB." }

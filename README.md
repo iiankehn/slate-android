@@ -1,10 +1,10 @@
-# Slate by CORE
+# Slate Notes by CORE
 
-Slate R1 is a private, local-first notes and document app for Android. It combines the speed of a notes app with document organization, rich-text tools, file interchange, recovery history, and a native update path—without requiring an account.
+Slate Notes (R1) is a private, local-first notes and document app for Android. It combines the speed of a notes app with document organization, rich-text tools, file interchange, recovery history, and a native update path—without requiring an account.
 
 Visit the [Slate website](https://slate.iiankehn.com/) to compare the distinct R1 and R2 products, open their repositories, and find official downloads.
 
-## Get Slate R1
+## Get Slate Notes
 
 - [Download the latest signed APK](https://github.com/iiankehn/slate-android/releases/latest)
 - Requires Android 12 or newer (API 31+)
@@ -32,8 +32,9 @@ When installing the APK for the first time, Android may ask you to allow install
 
 ### Files and Android integration
 
-- Import plain text, Markdown, and DOCX files
-- Export plain text, Markdown, DOCX, and PDF
+- Import `.slx`, plain text, Markdown, and DOCX files
+- Export `.slx`, plain text, Markdown, DOCX, and PDF
+- Continue a rich-text `.slx` document directly in Slate Forge with embedded media intact
 - Share through Android, print through the system print service, and open supported file associations
 - Scoped file access without broad storage permission
 
@@ -55,12 +56,12 @@ When installing the APK for the first time, Android may ask you to allow install
 
 See [Features](docs/FEATURES.md), the [User guide](docs/USER_GUIDE.md), and the full [R1 release notes](RELEASE_NOTES.md).
 
-## R1 and R2
+## Slate Notes and Slate Forge
 
-Slate R1 and Slate R2 are distinct products for different purposes. The names do not represent sequential upgrades or release increments.
+Slate Notes and Slate Forge are distinct products for different purposes. R1 and R2 remain their internal identifiers, not sequential upgrades or release increments.
 
-- **Slate R1** is the focused, local-first notes and document experience in this repository.
-- **Slate R2** is the separate full word-processing product intended for broader form factors, Googlebook Android support, and ARM64/x86_64 targets.
+- **Slate Notes (R1)** is the focused, local-first notes and document experience in this repository.
+- **Slate Forge (R2)** is the separate full word-processing product intended for broader form factors, Googlebook Android support, and ARM64/x86_64 targets.
 
 Each product follows its own monthly release line.
 
@@ -85,6 +86,7 @@ GitHub Actions runs that verification for pushes to `main` and `beta`, and for p
 | [User guide](docs/USER_GUIDE.md) | Installation, everyday use, shortcuts, files, recovery, and updates |
 | [Product brief](docs/PRODUCT.md) | Product scope, principles, and the R1/R2 boundary |
 | [Architecture](docs/ARCHITECTURE.md) | UI, state, persistence, format, and updater design |
+| [Slate formats](docs/SLATE_FORMATS.md) | Shared `.slx`, Forge-native `.slxf`, compatibility, security, and handoff contract |
 | [Privacy](docs/PRIVACY.md) | Data handling, permissions, network behavior, and security baseline |
 | [Visual identity](https://github.com/iiankehn/slate-r2-android/blob/main/docs/BRAND.md) | Shared Slate family mark, colors, and usage rules |
 | [Releasing](docs/RELEASING.md) | Signing, monthly workflow, version codes, and publication process |

@@ -93,6 +93,8 @@ import androidx.compose.ui.unit.sp
 import com.iiankehn.slate.SlateViewModel
 import com.iiankehn.slate.io.AndroidDocumentActions
 import com.iiankehn.slate.io.DocumentFormats
+import com.iiankehn.slate.io.SlxCodec
+import com.iiankehn.slate.io.SlxAsset
 import com.iiankehn.slate.model.Document
 import com.iiankehn.slate.model.DocumentTitlePolicy
 import com.iiankehn.slate.model.RichTextDocument
@@ -109,11 +111,12 @@ import com.iiankehn.slate.ui.theme.SlateTextMuted
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 private enum class CompactDestination { Library, Editor }
 private enum class LibraryFilter { Documents, Favorites, Archive, Trash }
 private enum class ExportFormat(val extension: String, val mime: String) {
-    Text("txt", "text/plain"), Markdown("md", "text/markdown"), Docx("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"), Pdf("pdf", "application/pdf")
+    Slx("slx", SlxCodec.MIME_TYPE), Text("txt", "text/plain"), Markdown("md", "text/markdown"), Docx("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"), Pdf("pdf", "application/pdf")
 }
 private data class ExportRequest(val document: Document, val format: ExportFormat)
 private sealed interface UpdateUiState {
@@ -183,7 +186,7 @@ fun SlateApp(viewModel: SlateViewModel) {
             runCatching { SlateUpdater.checkForUpdate(context) }
                 .onSuccess { update ->
                     updateUiState = if (update == null) {
-                        UpdateUiState.Message("Slate is up to date", "No newer published R1 build is available.")
+                        UpdateUiState.Message("Slate Notes is up to date", "No newer published Slate Notes build is available.")
                     } else {
                         UpdateUiState.Available(update)
                     }
@@ -207,11 +210,13 @@ fun SlateApp(viewModel: SlateViewModel) {
                     val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                         ?: error("Unable to read the selected document.")
                     val title = name.substringBeforeLast('.').ifBlank { "Imported document" }
-                    when (name.substringAfterLast('.', "").lowercase()) {
+                    val imported = when (name.substringAfterLast('.', "").lowercase()) {
+                        "slx" -> DocumentFormats.importSlx(bytes)
                         "md", "markdown" -> DocumentFormats.importMarkdown(bytes, title)
                         "docx" -> DocumentFormats.importDocx(bytes, title)
                         else -> DocumentFormats.importText(bytes, title)
                     }
+                    materializeSlxAssets(context, imported)
                 }
             }.onSuccess { imported ->
                 selectedId = viewModel.importDocument(imported).id
@@ -229,6 +234,10 @@ fun SlateApp(viewModel: SlateViewModel) {
             runCatching {
                 withContext(Dispatchers.IO) {
                     val bytes = when (request.format) {
+                        ExportFormat.Slx -> {
+                            val (portableDocument, assets) = collectSlxAssets(context, request.document)
+                            DocumentFormats.exportSlx(portableDocument, assets)
+                        }
                         ExportFormat.Text -> DocumentFormats.exportText(request.document.body)
                         ExportFormat.Markdown -> DocumentFormats.exportMarkdown(request.document.body)
                         ExportFormat.Docx -> DocumentFormats.exportDocx(request.document.title, request.document.body)
@@ -298,7 +307,7 @@ fun SlateApp(viewModel: SlateViewModel) {
                         selectedId = selected.id,
                         onDocumentSelected = { selectedId = it.id },
                         onNewDocument = { newDocument() },
-                        onImport = { importLauncher.launch(arrayOf("text/plain", "text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
+                        onImport = { importLauncher.launch(arrayOf(SlxCodec.MIME_TYPE, "text/plain", "text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
                         modifier = Modifier.width(360.dp).fillMaxHeight(),
                     )
                     Editor(
@@ -339,7 +348,7 @@ fun SlateApp(viewModel: SlateViewModel) {
                         newDocument()
                         destination = CompactDestination.Editor
                     },
-                    onImport = { importLauncher.launch(arrayOf("text/plain", "text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
+                    onImport = { importLauncher.launch(arrayOf(SlxCodec.MIME_TYPE, "text/plain", "text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
@@ -409,6 +418,42 @@ fun SlateApp(viewModel: SlateViewModel) {
             },
         )
     }
+}
+
+private fun collectSlxAssets(context: android.content.Context, document: Document): Pair<Document, List<SlxAsset>> {
+    val assets = mutableListOf<SlxAsset>()
+    val ranges = document.body.ranges.mapIndexed { index, range ->
+        if (range.style != RichTextStyle.Image || range.data.isNullOrBlank()) return@mapIndexed range
+        runCatching {
+            val uri = Uri.parse(range.data)
+            val bytes = if (uri.scheme == "file") File(requireNotNull(uri.path)).readBytes()
+            else context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("Unable to read image")
+            val mime = context.contentResolver.getType(uri) ?: when (File(uri.path.orEmpty()).extension.lowercase()) {
+                "jpg", "jpeg" -> "image/jpeg"; "gif" -> "image/gif"; "webp" -> "image/webp"; else -> "image/png"
+            }
+            val extension = when (mime) { "image/jpeg" -> "jpg"; "image/gif" -> "gif"; "image/webp" -> "webp"; else -> "png" }
+            val id = "image-$index"
+            assets += SlxAsset(id, extension, mime, bytes)
+            range.copy(data = "asset:$id")
+        }.getOrElse { range }
+    }
+    return document.copy(body = document.body.copy(ranges = ranges).normalized()) to assets
+}
+
+private fun materializeSlxAssets(context: android.content.Context, imported: com.iiankehn.slate.io.ImportedDocument): com.iiankehn.slate.io.ImportedDocument {
+    if (imported.slxAssets.isEmpty()) return imported
+    val directory = File(context.filesDir, "imported-slate-media").apply { mkdirs() }
+    val uris = imported.slxAssets.associate { asset ->
+        val extension = asset.extension.takeIf { it.matches(Regex("[A-Za-z0-9]{1,8}")) } ?: "bin"
+        val file = File(directory, "${asset.id}-${asset.bytes.contentHashCode()}.$extension")
+        file.outputStream().use { it.write(asset.bytes) }
+        asset.id to Uri.fromFile(file).toString()
+    }
+    val body = imported.body.copy(ranges = imported.body.ranges.map { range ->
+        val id = range.data?.takeIf { it.startsWith("asset:") }?.removePrefix("asset:")
+        if (id != null && id in uris) range.copy(data = uris.getValue(id)) else range
+    }).normalized()
+    return imported.copy(body = body, slxAssets = emptyList())
 }
 
 @Composable
@@ -746,6 +791,18 @@ private fun Editor(
                         text = { Text("Version history") },
                         onClick = { menuExpanded = false; onLoadHistory(document.id); showHistory = true },
                     )
+                    DropdownMenuItem(
+                        text = { Text("Continue in Slate Forge") },
+                        onClick = {
+                            menuExpanded = false
+                            runCatching {
+                                val (portableDocument, assets) = collectSlxAssets(context, document)
+                                AndroidDocumentActions.continueInForge(context, portableDocument, assets)
+                            }
+                                .onFailure { Toast.makeText(context, "Slate Forge is not installed.", Toast.LENGTH_LONG).show() }
+                        },
+                    )
+                    DropdownMenuItem(text = { Text("Export Slate document (.slx)") }, onClick = { menuExpanded = false; onExport(ExportFormat.Slx) })
                     DropdownMenuItem(text = { Text("Export text") }, onClick = { menuExpanded = false; onExport(ExportFormat.Text) })
                     DropdownMenuItem(text = { Text("Export Markdown") }, onClick = { menuExpanded = false; onExport(ExportFormat.Markdown) })
                     DropdownMenuItem(text = { Text("Export DOCX") }, onClick = { menuExpanded = false; onExport(ExportFormat.Docx) })

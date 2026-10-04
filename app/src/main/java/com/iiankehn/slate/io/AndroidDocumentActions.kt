@@ -2,6 +2,7 @@ package com.iiankehn.slate.io
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import android.os.Bundle
@@ -12,12 +13,34 @@ import android.print.PrintAttributes
 import android.print.PrintDocumentAdapter
 import android.print.PrintDocumentInfo
 import android.print.PrintManager
+import androidx.core.content.FileProvider
 import com.iiankehn.slate.model.Document
 import com.iiankehn.slate.model.DocumentTitlePolicy
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.FileOutputStream
 
 object AndroidDocumentActions {
+    fun continueInForge(context: Context, document: Document, assets: List<SlxAsset> = emptyList()) {
+        requireTrustedTarget(context, "com.iiankehn.slater2")
+        val directory = File(context.cacheDir, "handoff").apply { mkdirs() }
+        val file = File(directory, "${document.id}.slx")
+        file.writeBytes(DocumentFormats.exportSlx(document, assets))
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, SlxCodec.MIME_TYPE)
+            setPackage("com.iiankehn.slater2")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(intent)
+    }
+
+    private fun requireTrustedTarget(context: Context, targetPackage: String) {
+        require(context.packageManager.checkSignatures(context.packageName, targetPackage) == PackageManager.SIGNATURE_MATCH) {
+            "The installed Slate Forge build is missing or is not signed by the trusted Slate key."
+        }
+    }
+
     fun renderPdf(document: Document): ByteArray {
         val pdf = PdfDocument()
         val title = DocumentTitlePolicy.displayTitle(document.title, document.body.text)
