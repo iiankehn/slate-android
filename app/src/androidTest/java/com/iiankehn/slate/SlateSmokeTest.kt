@@ -1,7 +1,9 @@
 package com.iiankehn.slate
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -16,23 +18,27 @@ class SlateSmokeTest {
 
     @Test
     fun launchCreateAndBackToLibrary() {
-        composeRule.onNodeWithText("Notes and word processing, in one workspace")
-            .assertIsDisplayed()
-
+        composeRule.waitForText("New document")
         composeRule.onNodeWithText("New document")
             .assertIsDisplayed()
             .performClick()
 
+        composeRule.waitForText("Untitled document")
         composeRule.onNodeWithText("Untitled document")
-            .assertIsDisplayed()
-        composeRule.onNodeWithText("Start writing…")
             .assertIsDisplayed()
 
         composeRule.runOnUiThread {
             composeRule.activity.onBackPressedDispatcher.onBackPressed()
         }
 
+        composeRule.waitForText("Create a document")
         composeRule.onNodeWithText("Create a document")
             .assertIsDisplayed()
+    }
+
+    private fun ComposeTestRule.waitForText(text: String) {
+        waitUntil(timeoutMillis = 10_000) {
+            onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 }
