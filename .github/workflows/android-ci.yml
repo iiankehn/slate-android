@@ -78,15 +78,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
-          script: |
-            adb shell wm size ${{ matrix.device.size }}
-            adb shell wm density ${{ matrix.device.density }}
-            mkdir -p app/build/reports/emulator
-            if ! gradle --no-daemon connectedDebugAndroidTest; then
-              adb exec-out screencap -p > app/build/reports/emulator/${{ matrix.device.name }}-failure.png || true
-              adb logcat -d > app/build/reports/emulator/${{ matrix.device.name }}-logcat.txt || true
-              exit 1
-            fi
+          script: bash .github/scripts/run-emulator-tests.sh ${{ matrix.device.name }} ${{ matrix.device.size }} ${{ matrix.device.density }}
       - name: Upload emulator results
         if: always()
         uses: actions/upload-artifact@v5
