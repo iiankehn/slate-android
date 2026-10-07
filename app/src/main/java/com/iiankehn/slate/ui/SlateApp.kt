@@ -219,7 +219,8 @@ fun SlateApp(viewModel: SlateViewModel) {
                         "slxf" -> DocumentFormats.importSlxf(bytes)
                         "md", "markdown" -> DocumentFormats.importMarkdown(bytes, title)
                         "docx" -> DocumentFormats.importDocx(bytes, title)
-                        else -> DocumentFormats.importText(bytes, title)
+                        "txt" -> DocumentFormats.importText(bytes, title)
+                        else -> error("Slate can import .slx, .slxf, .txt, .md, .markdown, and .docx files.")
                     }
                     materializeImportedImages(context, imported)
                 }
@@ -309,7 +310,11 @@ fun SlateApp(viewModel: SlateViewModel) {
                 documents = uiState.documents,
                 onNew = ::createBlank,
                 onTemplate = ::createFromTemplate,
-                onImport = { importLauncher.launch(arrayOf(SlxCodec.MIME_TYPE, SlxfCodec.MIME_TYPE, "text/plain", "text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
+                // Android file providers usually expose unfamiliar custom extensions as
+                // application/octet-stream. Filtering on Slate's registered MIME types would
+                // therefore disable otherwise valid .slx and .slxf files in the system picker.
+                // Let the user select a file, then validate its extension and payload above.
+                onImport = { importLauncher.launch(arrayOf("*/*")) },
                 onOpen = { selectedId = it.id },
                 onDuplicate = { viewModel.duplicateDocument(it) },
                 onPin = { viewModel.togglePin(it) },
@@ -325,7 +330,7 @@ fun SlateApp(viewModel: SlateViewModel) {
                 onClose = { selectedId = null },
                 onChange = viewModel::updateDocument,
                 onNew = ::createBlank,
-                onImport = { importLauncher.launch(arrayOf(SlxCodec.MIME_TYPE, SlxfCodec.MIME_TYPE, "text/plain", "text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) },
+                onImport = { importLauncher.launch(arrayOf("*/*")) },
                 pendingImageUri = pendingImageUri,
                 onChooseImage = { imageLauncher.launch(arrayOf("image/*")) },
                 onImageConsumed = { pendingImageUri = null },
