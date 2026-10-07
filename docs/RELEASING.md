@@ -32,6 +32,8 @@ The workflow maps the established `SLATE_R1_*` repository secrets into generic `
 - `SLATE_R1_KEY_ALIAS`
 - `SLATE_R1_KEY_PASSWORD`
 
+`SLATE_R1_CERT_SHA256` is optional but recommended. When configured, the release workflow compares the APK's signing certificate with the pinned production certificate fingerprint and stops before uploading anything if they differ.
+
 Signing files and passwords must never enter source control, logs, issue attachments, or release notes.
 
 ## Pre-release checklist
