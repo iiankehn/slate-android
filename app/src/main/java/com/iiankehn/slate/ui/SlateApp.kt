@@ -1,6 +1,7 @@
 package com.iiankehn.slate.ui
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -86,6 +87,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -422,6 +424,7 @@ private fun StartCenter(
     onRestore: (Document) -> Unit,
     onDelete: (Document) -> Unit,
 ) {
+    val configuration = LocalConfiguration.current
     var filter by remember { mutableStateOf(LibraryFilter.Documents) }
     var query by remember { mutableStateOf("") }
     val visibleDocuments = documents.filter { document ->
@@ -436,7 +439,9 @@ private fun StartCenter(
     }
     BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         val wide = maxWidth >= 840.dp
-        val shortWindow = maxHeight < 500.dp
+        val physicalPhone = configuration.smallestScreenWidthDp in 1..599
+        val shortWindow = maxHeight < 500.dp ||
+            (physicalPhone && configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
         Column(Modifier.fillMaxSize()) {
             Surface(color = MaterialTheme.colorScheme.surface) {
                 Row(
@@ -602,12 +607,13 @@ private fun WordProcessorWorkspace(
     onCheckUpdates: () -> Unit,
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
     val ribbonPreferences = remember(context) {
         context.getSharedPreferences("slate-interface", android.content.Context.MODE_PRIVATE)
     }
     var activeTab by remember { mutableStateOf(RibbonTab.Home) }
     var phoneRibbonExpanded by remember {
-        mutableStateOf(ribbonPreferences.getBoolean("phone-ribbon-expanded", false))
+        mutableStateOf(ribbonPreferences.getBoolean("phone-ribbon-expanded-v2", false))
     }
     var showNavigation by remember { mutableStateOf(true) }
     var showInspector by remember { mutableStateOf(true) }
@@ -681,15 +687,20 @@ private fun WordProcessorWorkspace(
     }
 
     BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()) {
-        val workspace = workspaceConfiguration(maxWidth.value.toInt(), maxHeight.value.toInt())
+        val workspace = workspaceConfiguration(
+            widthDp = maxWidth.value.toInt(),
+            heightDp = maxHeight.value.toInt(),
+            smallestWidthDp = configuration.smallestScreenWidthDp.coerceAtLeast(1),
+        )
         val compactWindow = workspace.toolbar == ToolbarPresentation.CompactDock
-        val shortWindow = maxHeight < 500.dp
+        val shortWindow = maxHeight < 500.dp ||
+            (compactWindow && configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
         val tablet = !compactWindow && maxWidth >= 840.dp
         val desktop = !compactWindow && maxWidth >= 1200.dp
         val showRibbonCommands = !compactWindow || phoneRibbonExpanded
         fun setPhoneRibbonExpanded(expanded: Boolean) {
             phoneRibbonExpanded = expanded
-            ribbonPreferences.edit().putBoolean("phone-ribbon-expanded", expanded).apply()
+            ribbonPreferences.edit().putBoolean("phone-ribbon-expanded-v2", expanded).apply()
         }
         Column(Modifier.fillMaxSize()) {
             DocumentTitleBar(document, saving, compactWindow, onClose, onChange)

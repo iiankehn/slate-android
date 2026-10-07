@@ -28,6 +28,19 @@ class WorkspaceConfigurationTest {
     }
 
     @Test
+    fun physicalPhoneStaysCompactWhenDisplayScalingReportsLargeWindow() {
+        val workspace = workspaceConfiguration(
+            widthDp = 915,
+            heightDp = 700,
+            smallestWidthDp = 412,
+        )
+
+        assertEquals(R2FormFactor.Phone, workspace.formFactor)
+        assertEquals(ToolbarPresentation.CompactDock, workspace.toolbar)
+        assertEquals(NavigationPresentation.DestinationScreen, workspace.navigation)
+    }
+
+    @Test
     fun googlebookWithDesktopInputUsesFullWorkspace() {
         val workspace = workspaceConfiguration(
             widthDp = 1366,

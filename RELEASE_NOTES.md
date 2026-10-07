@@ -17,7 +17,7 @@ Slate Notes and Slate Forge now share one application, library, editor, document
 - Added native system-controlled light and dark themes across the library, workspace, controls, canvas, pages, tables, and embedded-object editors.
 - Kept editor theme colors presentation-only so changing the Android theme cannot alter saved documents or exported page colors.
 - Added a collapsible phone ribbon with always-available bold, italic, and underline actions plus a remembered compact/expanded preference.
-- Made phone classification orientation-aware so landscape phones no longer receive tablet chrome, and introduced a dense short-window editor with a compact title bar, reduced page margins, and nonessential ruler/status elements removed.
+- Made phone classification orientation-aware using Android's stable smallest-width identity so landscape phones and unusual display scaling no longer receive tablet chrome, and introduced a dense short-window editor with a compact title bar, reduced page margins, and nonessential ruler/status elements removed.
 - Compacted the start center in short landscape windows so document creation, templates, search, and recent files remain reachable without oversized cards or headers.
 - Rewrote product, format, privacy, architecture, release, contribution, security, and user documentation for one product.
 

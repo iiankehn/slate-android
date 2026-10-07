@@ -27,16 +27,18 @@ enum class PageScaleMode { FitWidth, FitPage, ActualSize }
 fun workspaceConfiguration(
     widthDp: Int,
     heightDp: Int = Int.MAX_VALUE,
+    smallestWidthDp: Int = minOf(widthDp, heightDp),
     isFoldable: Boolean = false,
     isGooglebookAndroid: Boolean = false,
     inputs: Set<InputModality> = setOf(InputModality.Touch),
 ): WorkspaceConfiguration {
     require(widthDp > 0) { "Workspace width must be positive." }
     require(heightDp > 0) { "Workspace height must be positive." }
+    require(smallestWidthDp > 0) { "Smallest screen width must be positive." }
 
     val hasDesktopInput = InputModality.HardwareKeyboard in inputs ||
         InputModality.MouseTrackpad in inputs
-    val compactWindow = minOf(widthDp, heightDp) < 600
+    val compactWindow = smallestWidthDp < 600 || minOf(widthDp, heightDp) < 600
 
     val formFactor = when {
         isGooglebookAndroid -> R2FormFactor.GooglebookAndroid
