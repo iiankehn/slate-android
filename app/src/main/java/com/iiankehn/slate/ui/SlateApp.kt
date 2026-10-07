@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -48,8 +49,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -76,6 +79,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -106,6 +110,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iiankehn.slate.SlateViewModel
+import com.iiankehn.slate.R
 import com.iiankehn.slate.io.AndroidDocumentActions
 import com.iiankehn.slate.io.DocumentFormats
 import com.iiankehn.slate.io.DocxEmbeddedImage
@@ -442,6 +447,7 @@ private fun StartCenter(
         val physicalPhone = configuration.smallestScreenWidthDp in 1..599
         val shortWindow = maxHeight < 500.dp ||
             (physicalPhone && configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
+        val compactStart = physicalPhone || shortWindow
         Column(Modifier.fillMaxSize()) {
             Surface(color = MaterialTheme.colorScheme.surface) {
                 Row(
@@ -451,11 +457,8 @@ private fun StartCenter(
                     ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Slate", style = if (shortWindow) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium)
-                        if (!shortWindow) Text("Notes and word processing, in one workspace", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    OutlinedButton(onClick = onImport) { Text(if (shortWindow) "Open" else "Open document") }
+                    Text("Slate", style = if (shortWindow) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+                    Text("Private • Local", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             LazyColumn(
@@ -467,15 +470,17 @@ private fun StartCenter(
                 verticalArrangement = Arrangement.spacedBy(if (shortWindow) 14.dp else 24.dp),
             ) {
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(if (shortWindow) 8.dp else 14.dp)) {
-                        Text("Create a document", style = if (shortWindow) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge)
-                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            NewDocumentCard("New document", "Slate adapts as you write", primary = true, compact = shortWindow, onClick = onNew)
-                            TemplateKind.entries.forEach { NewDocumentCard(it.title, it.description, compact = shortWindow, onClick = { onTemplate(it) }) }
+                    StartHero(compact = compactStart, onNew = onNew, onImport = onImport)
+                }
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(if (shortWindow) 8.dp else 12.dp)) {
+                        Text("Start from a template", style = MaterialTheme.typography.titleMedium)
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            TemplateKind.entries.forEach { TemplateCard(it, compact = compactStart, onClick = { onTemplate(it) }) }
                         }
                     }
                 }
-                item {
+                if (documents.isNotEmpty()) item {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(
                             value = query,
@@ -486,21 +491,23 @@ private fun StartCenter(
                         )
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             LibraryFilter.entries.forEach { item ->
-                                OutlinedButton(onClick = { filter = item }) {
-                                    Text(if (filter == item) "• ${item.name}" else item.name)
-                                }
+                                FilterChip(selected = filter == item, onClick = { filter = item }, label = { Text(item.name) })
                             }
                         }
                     }
                 }
-                item { Text("Recent documents", style = MaterialTheme.typography.titleLarge) }
-                if (visibleDocuments.isEmpty()) item {
-                    Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(20.dp)) {
-                        Column(Modifier.fillMaxWidth().padding(28.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Your workspace is ready", style = MaterialTheme.typography.titleMedium)
-                            Text("Start writing immediately, choose a template, or open an existing document.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                item {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Recent documents", style = if (shortWindow) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                        if (visibleDocuments.isNotEmpty()) Text("${visibleDocuments.size}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                }
+                if (visibleDocuments.isEmpty()) item {
+                    Text(
+                        if (documents.isEmpty()) "Your first document will appear here." else "No documents match this view.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp),
+                    )
                 } else items(visibleDocuments, key = Document::id) { document ->
                     RecentDocument(
                         document = document,
@@ -520,24 +527,59 @@ private fun StartCenter(
 }
 
 @Composable
-private fun NewDocumentCard(
-    title: String,
-    description: String,
-    primary: Boolean = false,
+private fun StartHero(
     compact: Boolean = false,
-    onClick: () -> Unit,
+    onNew: () -> Unit,
+    onImport: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier.width(if (compact) 170.dp else 190.dp).height(if (compact) 108.dp else 150.dp).clickable(onClick = onClick),
-        color = if (primary) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
-        shape = RoundedCornerShape(24.dp),
-        border = BorderStroke(1.dp, if (primary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        shape = RoundedCornerShape(if (compact) 22.dp else 28.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
     ) {
-        Column(Modifier.padding(if (compact) 14.dp else 18.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            Text(if (primary) "+" else "▤", fontSize = if (compact) 22.sp else 30.sp, color = MaterialTheme.colorScheme.primary)
-            Column {
-                Text(title, fontWeight = FontWeight.SemiBold)
-                Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis)
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = if (compact) 18.dp else 28.dp, vertical = if (compact) 14.dp else 22.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp)) {
+                Text("Make space for the idea.", style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium)
+                Text(
+                    "Start with a note. Build it into a polished document when you need more.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
+                    maxLines = if (compact) 2 else 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onNew) { Text("New document") }
+                    OutlinedButton(onClick = onImport) { Text("Open") }
+                }
+            }
+            Image(
+                painter = painterResource(R.drawable.ic_launcher_art),
+                contentDescription = "Slate cat-fox holding a pen",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(if (compact) 92.dp else 132.dp).padding(start = 12.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TemplateCard(template: TemplateKind, compact: Boolean, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.width(if (compact) 150.dp else 180.dp).height(if (compact) 70.dp else 82.dp).clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.fillMaxHeight().width(5.dp).background(MaterialTheme.colorScheme.primary))
+            Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                Text(template.title, fontWeight = FontWeight.SemiBold)
+                Text(template.description, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }

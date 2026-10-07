@@ -2,7 +2,7 @@
 
 ## Start writing
 
-Select **New document** from the start center. Slate opens an adaptive document. Write normally; there is no required Note/Forge choice.
+Select **New document** from the branded start panel, choose a quieter template card, or select **Open** to import an existing file. Search and library filters appear once you have documents to organize. Slate opens new files adaptively, so there is no required Note/Forge choice.
 
 The library badge shows **Note** while the file uses note-compatible content. If you add page setup, sections, headers, footers, structured tables, or page breaks, Slate preserves it as **Forge**. A long note remains a note.
 
