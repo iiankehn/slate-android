@@ -20,28 +20,40 @@ enum class ToolbarPresentation { CompactDock, ScrollableRibbon, FullRibbon }
 enum class PageScaleMode { FitWidth, FitPage, ActualSize }
 
 /**
- * Produces deterministic workspace behavior from window width and available input hardware.
- * The UI can react to a keyboard or pointing device without coupling document state to Android.
+ * Produces deterministic workspace behavior from the complete window size and available input
+ * hardware. Using the shortest dimension keeps landscape phones and short multi-window layouts
+ * from being mistaken for tablets.
  */
 fun workspaceConfiguration(
     widthDp: Int,
+    heightDp: Int = Int.MAX_VALUE,
     isFoldable: Boolean = false,
     isGooglebookAndroid: Boolean = false,
     inputs: Set<InputModality> = setOf(InputModality.Touch),
 ): WorkspaceConfiguration {
     require(widthDp > 0) { "Workspace width must be positive." }
+    require(heightDp > 0) { "Workspace height must be positive." }
 
     val hasDesktopInput = InputModality.HardwareKeyboard in inputs ||
         InputModality.MouseTrackpad in inputs
+    val compactWindow = minOf(widthDp, heightDp) < 600
 
     val formFactor = when {
         isGooglebookAndroid -> R2FormFactor.GooglebookAndroid
         isFoldable -> R2FormFactor.Foldable
-        widthDp >= 600 -> R2FormFactor.Tablet
+        !compactWindow -> R2FormFactor.Tablet
         else -> R2FormFactor.Phone
     }
 
     return when {
+        compactWindow -> WorkspaceConfiguration(
+            formFactor = formFactor,
+            navigation = NavigationPresentation.DestinationScreen,
+            inspector = InspectorPresentation.ModalSheet,
+            toolbar = ToolbarPresentation.CompactDock,
+            pageScaleMode = PageScaleMode.FitWidth,
+        )
+
         widthDp >= 1200 -> WorkspaceConfiguration(
             formFactor = formFactor,
             navigation = NavigationPresentation.PersistentPanel,
@@ -65,13 +77,6 @@ fun workspaceConfiguration(
             toolbar = ToolbarPresentation.ScrollableRibbon,
             pageScaleMode = PageScaleMode.FitWidth,
         )
-
-        else -> WorkspaceConfiguration(
-            formFactor = formFactor,
-            navigation = NavigationPresentation.DestinationScreen,
-            inspector = InspectorPresentation.ModalSheet,
-            toolbar = ToolbarPresentation.CompactDock,
-            pageScaleMode = PageScaleMode.FitWidth,
-        )
+        else -> error("Unreachable workspace width")
     }
 }

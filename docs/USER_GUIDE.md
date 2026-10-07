@@ -10,6 +10,8 @@ The library badge shows **Note** while the file uses note-compatible content. If
 
 The Forge-derived ribbon groups editing and document actions. On phones it starts as a compact dock with bold, italic, and underline controls; select **More** to reveal every ribbon tab and **Collapse** to return to the dock. Slate remembers that choice. The dock remains above the software keyboard. Tablets and larger windows keep the expanded ribbon and expose more controls at once.
 
+Rotating a phone to landscape keeps the compact phone workspace instead of switching to tablet controls. Slate condenses the title and ribbon areas, removes the ruler and bottom status bar, and reduces on-page margins so the document receives most of the available height and width. Rotate back to portrait at any time without changing the document.
+
 Slate follows Android's light or dark appearance automatically. The editor canvas, document pages, tables, and object controls change with the system theme for comfortable editing. This is a display preference only: it does not change the document's stored formatting or the white page used by exported and printed output.
 
 Common keyboard shortcuts include `Ctrl+B`, `Ctrl+I`, `Ctrl+U`, `Ctrl+F`, `Ctrl+Z`, and `Ctrl+Y`.

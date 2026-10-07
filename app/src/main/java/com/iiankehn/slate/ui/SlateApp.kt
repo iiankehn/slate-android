@@ -436,27 +436,37 @@ private fun StartCenter(
     }
     BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         val wide = maxWidth >= 840.dp
+        val shortWindow = maxHeight < 500.dp
         Column(Modifier.fillMaxSize()) {
             Surface(color = MaterialTheme.colorScheme.surface) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = if (wide) 40.dp else 20.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.fillMaxWidth().padding(
+                        horizontal = if (wide) 40.dp else 16.dp,
+                        vertical = if (shortWindow) 8.dp else 18.dp,
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Column(Modifier.weight(1f)) {
-                        Text("Slate", style = MaterialTheme.typography.headlineMedium)
-                        Text("Notes and word processing, in one workspace", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Slate", style = if (shortWindow) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium)
+                        if (!shortWindow) Text("Notes and word processing, in one workspace", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    OutlinedButton(onClick = onImport) { Text("Open document") }
+                    OutlinedButton(onClick = onImport) { Text(if (shortWindow) "Open" else "Open document") }
                 }
             }
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = if (wide) 48.dp else 20.dp, vertical = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
+                contentPadding = PaddingValues(
+                    horizontal = if (wide) 48.dp else 16.dp,
+                    vertical = if (shortWindow) 14.dp else 32.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(if (shortWindow) 14.dp else 24.dp),
             ) {
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Text("Create a document", style = MaterialTheme.typography.titleLarge)
+                    Column(verticalArrangement = Arrangement.spacedBy(if (shortWindow) 8.dp else 14.dp)) {
+                        Text("Create a document", style = if (shortWindow) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge)
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            NewDocumentCard("New document", "Slate adapts as you write", true, onNew)
-                            TemplateKind.entries.forEach { NewDocumentCard(it.title, it.description, onClick = { onTemplate(it) }) }
+                            NewDocumentCard("New document", "Slate adapts as you write", primary = true, compact = shortWindow, onClick = onNew)
+                            TemplateKind.entries.forEach { NewDocumentCard(it.title, it.description, compact = shortWindow, onClick = { onTemplate(it) }) }
                         }
                     }
                 }
@@ -505,18 +515,24 @@ private fun StartCenter(
 }
 
 @Composable
-private fun NewDocumentCard(title: String, description: String, primary: Boolean = false, onClick: () -> Unit) {
+private fun NewDocumentCard(
+    title: String,
+    description: String,
+    primary: Boolean = false,
+    compact: Boolean = false,
+    onClick: () -> Unit,
+) {
     Surface(
-        modifier = Modifier.width(190.dp).height(150.dp).clickable(onClick = onClick),
+        modifier = Modifier.width(if (compact) 170.dp else 190.dp).height(if (compact) 108.dp else 150.dp).clickable(onClick = onClick),
         color = if (primary) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
         shape = RoundedCornerShape(24.dp),
         border = BorderStroke(1.dp, if (primary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            Text(if (primary) "+" else "▤", fontSize = 30.sp, color = MaterialTheme.colorScheme.primary)
+        Column(Modifier.padding(if (compact) 14.dp else 18.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Text(if (primary) "+" else "▤", fontSize = if (compact) 22.sp else 30.sp, color = MaterialTheme.colorScheme.primary)
             Column {
                 Text(title, fontWeight = FontWeight.SemiBold)
-                Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -665,24 +681,27 @@ private fun WordProcessorWorkspace(
     }
 
     BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()) {
-        val phone = maxWidth < 600.dp
-        val tablet = maxWidth >= 840.dp
-        val desktop = maxWidth >= 1200.dp
-        val showRibbonCommands = !phone || phoneRibbonExpanded
+        val workspace = workspaceConfiguration(maxWidth.value.toInt(), maxHeight.value.toInt())
+        val compactWindow = workspace.toolbar == ToolbarPresentation.CompactDock
+        val shortWindow = maxHeight < 500.dp
+        val tablet = !compactWindow && maxWidth >= 840.dp
+        val desktop = !compactWindow && maxWidth >= 1200.dp
+        val showRibbonCommands = !compactWindow || phoneRibbonExpanded
         fun setPhoneRibbonExpanded(expanded: Boolean) {
             phoneRibbonExpanded = expanded
             ribbonPreferences.edit().putBoolean("phone-ribbon-expanded", expanded).apply()
         }
         Column(Modifier.fillMaxSize()) {
-            DocumentTitleBar(document, saving, onClose, onChange)
+            DocumentTitleBar(document, saving, compactWindow, onClose, onChange)
             if (showRibbonCommands) {
                 RibbonTabs(
                     active = activeTab,
                     onSelect = { activeTab = it },
-                    onCollapse = if (phone) ({ setPhoneRibbonExpanded(false) }) else null,
+                    dense = shortWindow,
+                    onCollapse = if (compactWindow) ({ setPhoneRibbonExpanded(false) }) else null,
                 )
                 Ribbon(
-                    tab = activeTab, compact = !tablet, document = document, selection = editorValue.selection,
+                    tab = activeTab, compact = !tablet, dense = shortWindow, document = document, selection = editorValue.selection,
                     onToggle = ::toggle, onInsert = ::insert, onNew = onNew, onOpen = onImport,
                     onToggleList = ::toggleList,
                     onAdjustListLevel = ::adjustListLevel,
@@ -703,6 +722,7 @@ private fun WordProcessorWorkspace(
                     document = document,
                     selection = editorValue.selection,
                     onToggle = ::toggle,
+                    dense = shortWindow,
                     onExpand = { setPhoneRibbonExpanded(true) },
                 )
             }
@@ -715,9 +735,10 @@ private fun WordProcessorWorkspace(
                     modifier = Modifier.width(230.dp).fillMaxHeight(),
                 )
                 Column(Modifier.weight(1f).fillMaxHeight().background(SlateEditorTheme.colors.canvas)) {
-                    Ruler(zoom)
+                    if (!compactWindow) Ruler(zoom)
                     DocumentCanvas(
                         value = editorValue, zoom = zoom, focusRequester = focusRequester,
+                        compact = compactWindow,
                         document = editor.document,
                         onValueChange = { value ->
                             publish(editor.replace(value.text, value.selection.start, value.selection.end))
@@ -755,7 +776,7 @@ private fun WordProcessorWorkspace(
                     modifier = Modifier.width(280.dp).fillMaxHeight(),
                 )
             }
-            StatusBar(document, saving, zoom, activePage) { zoom = it }
+            if (!shortWindow) StatusBar(document, saving, zoom, activePage, compactWindow) { zoom = it }
         }
     }
     if (showHeaderFooterEditor) {
@@ -789,34 +810,34 @@ private fun WordProcessorWorkspace(
 }
 
 @Composable
-private fun DocumentTitleBar(document: Document, saving: Boolean, onClose: () -> Unit, onChange: (Document) -> Unit) {
+private fun DocumentTitleBar(document: Document, saving: Boolean, compact: Boolean, onClose: () -> Unit, onChange: (Document) -> Unit) {
     Surface(color = MaterialTheme.colorScheme.surface) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onClose) { Text("‹ Start") }
-            Text("S", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black, modifier = Modifier.background(MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)).padding(horizontal = 11.dp, vertical = 7.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = if (compact) 6.dp else 12.dp, vertical = if (compact) 4.dp else 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onClose, modifier = Modifier.semantics { contentDescription = "Back to library" }) { Text(if (compact) "‹" else "‹ Start") }
+            if (!compact) Text("S", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black, modifier = Modifier.background(MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)).padding(horizontal = 11.dp, vertical = 7.dp))
             BasicTextField(
                 value = document.title,
                 onValueChange = { onChange(document.copy(title = it)) },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                modifier = Modifier.weight(1f).padding(horizontal = 14.dp),
+                modifier = Modifier.weight(1f).padding(horizontal = if (compact) 8.dp else 14.dp),
                 decorationBox = { inner -> if (document.title.isBlank()) Text("Untitled document", color = MaterialTheme.colorScheme.onSurfaceVariant) else inner() },
             )
             Text(if (saving) "Saving…" else "Saved", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(if (DocumentExperiencePolicy.effective(document) == DocumentExperience.Forge) "Forge" else "Note", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 10.dp))
+            if (!compact) Text(if (DocumentExperiencePolicy.effective(document) == DocumentExperience.Forge) "Forge" else "Note", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 10.dp))
         }
     }
 }
 
 @Composable
-private fun RibbonTabs(active: RibbonTab, onSelect: (RibbonTab) -> Unit, onCollapse: (() -> Unit)? = null) {
+private fun RibbonTabs(active: RibbonTab, onSelect: (RibbonTab) -> Unit, dense: Boolean = false, onCollapse: (() -> Unit)? = null) {
     Surface(color = MaterialTheme.colorScheme.surface) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
                 RibbonTab.entries.forEach { tab ->
                     val selected = tab == active
-                    Column(Modifier.clickable { onSelect(tab) }.padding(horizontal = 18.dp, vertical = 9.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(Modifier.clickable { onSelect(tab) }.padding(horizontal = if (dense) 14.dp else 18.dp, vertical = if (dense) 4.dp else 9.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(tab.name, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                         if (selected) Spacer(Modifier.padding(top = 4.dp).width(28.dp).height(3.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(3.dp)))
                     }
@@ -835,15 +856,16 @@ private fun CompactRibbonDock(
     document: Document,
     selection: TextRange,
     onToggle: (RichTextStyle) -> Unit,
+    dense: Boolean = false,
     onExpand: () -> Unit,
 ) {
     Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
         Row(
-            Modifier.fillMaxWidth().height(54.dp).padding(horizontal = 8.dp, vertical = 5.dp),
+            Modifier.fillMaxWidth().height(if (dense) 46.dp else 52.dp).padding(horizontal = 6.dp, vertical = if (dense) 2.dp else 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text("Format", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 8.dp))
+            if (!dense) Text("Format", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 6.dp))
             RibbonCommand("B", { onToggle(RichTextStyle.Bold) }, document.body.hasStyle(RichTextStyle.Bold, selection.min, selection.max), FontWeight.Black)
             RibbonCommand("I", { onToggle(RichTextStyle.Italic) }, document.body.hasStyle(RichTextStyle.Italic, selection.min, selection.max), italic = true)
             RibbonCommand("U", { onToggle(RichTextStyle.Underline) }, document.body.hasStyle(RichTextStyle.Underline, selection.min, selection.max), underline = true)
@@ -860,6 +882,7 @@ private fun CompactRibbonDock(
 private fun Ribbon(
     tab: RibbonTab,
     compact: Boolean,
+    dense: Boolean,
     document: Document,
     selection: TextRange,
     onToggle: (RichTextStyle) -> Unit,
@@ -886,7 +909,7 @@ private fun Ribbon(
     onZoom: (Int) -> Unit,
 ) {
     Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
-        Row(Modifier.fillMaxWidth().height(if (compact) 70.dp else 88.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth().height(if (dense) 66.dp else if (compact) 70.dp else 88.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = if (dense) 3.dp else 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             when (tab) {
                 RibbonTab.File -> {
                     RibbonGroup("Document") { RibbonCommand("New", onNew); RibbonCommand("Open", onOpen) }
@@ -1134,6 +1157,7 @@ private fun DocumentCanvas(
     value: TextFieldValue,
     document: WordProcessingDocument,
     zoom: Int,
+    compact: Boolean,
     focusRequester: FocusRequester,
     onValueChange: (TextFieldValue) -> Unit,
     onToggle: (RichTextStyle) -> Unit,
@@ -1158,6 +1182,8 @@ private fun DocumentCanvas(
     val layout = remember(document) { DocumentLayoutEngine().layout(document) }
     val slices = remember(document, layout, value.text.length) { pageTextSlices(document, layout, value.text.length) }
     val listState = rememberLazyListState()
+    val pageHorizontalPadding = if (compact) 36.dp else 72.dp
+    val pageVerticalPadding = if (compact) 24.dp else 34.dp
     LaunchedEffect(activePage, layout.pageCount) {
         val target = activePage.coerceIn(0, layout.pages.lastIndex)
         if (target != activePage) onActivePageChange(target)
@@ -1170,8 +1196,8 @@ private fun DocumentCanvas(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         state = listState,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+        contentPadding = PaddingValues(horizontal = if (compact) 8.dp else 16.dp, vertical = if (compact) 10.dp else 28.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 14.dp else 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         itemsIndexed(layout.pages, key = { _, page -> "page-${page.index}" }) { pageIndex, page ->
@@ -1214,6 +1240,7 @@ private fun DocumentCanvas(
                                 onDeleteObject = onDeleteObject,
                                 selectedObjectId = selectedObjectId,
                                 onSelectObject = onSelectObject,
+                                horizontalPadding = pageHorizontalPadding,
                             )
                             BasicTextField(
                             value = pageValue,
@@ -1233,7 +1260,10 @@ private fun DocumentCanvas(
                             ),
                             cursorBrush = SolidColor(CoreBlue),
                             modifier = Modifier.weight(1f).fillMaxWidth()
-                                .padding(horizontal = (72 * zoom / 100).dp, vertical = (34 * zoom / 100).dp)
+                                .padding(
+                                    horizontal = (pageHorizontalPadding.value * zoom / 100f).dp,
+                                    vertical = (pageVerticalPadding.value * zoom / 100f).dp,
+                                )
                                 .then(if (selected) Modifier.focusRequester(focusRequester) else Modifier)
                                 .onPreviewKeyEvent { event ->
                                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
@@ -1292,13 +1322,14 @@ private fun StructuredObjects(
     onDeleteObject: (String) -> Unit,
     selectedObjectId: String?,
     onSelectObject: (String?) -> Unit,
+    horizontalPadding: androidx.compose.ui.unit.Dp,
 ) {
     val objectIds = layout.pages[pageIndex].columns.flatMap { it.fragments }
         .filter { it.kind == FragmentKind.Table || it.kind == FragmentKind.Image }
         .mapTo(linkedSetOf()) { it.blockId }
     val objects = document.sections.flatMap { it.blocks }.filter { it.id in objectIds }
     if (objects.isEmpty()) return
-    Column(Modifier.fillMaxWidth().padding(horizontal = 72.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = horizontalPadding, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         objects.forEach { block -> when (block) {
             is TableBlock -> EditableTable(
                 block, block.id == selectedObjectId, onSelectObject,
@@ -1637,18 +1668,20 @@ internal fun pageTextSlices(
 }
 
 @Composable
-private fun StatusBar(document: Document, saving: Boolean, zoom: Int, activePage: Int, onZoom: (Int) -> Unit) {
+private fun StatusBar(document: Document, saving: Boolean, zoom: Int, activePage: Int, compact: Boolean, onZoom: (Int) -> Unit) {
     val words = wordCount(document.body.text)
     val pages = remember(document.wordProcessingDocument, document.body) {
         DocumentLayoutEngine().layout(document.wordProcessingDocument ?: R2DocumentBridge.fromLegacy(document)).pageCount
     }
     Surface(color = MaterialTheme.colorScheme.surface) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = if (compact) 3.dp else 5.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(if (saving) "Saving…" else "Saved locally", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("  •  Page ${(activePage + 1).coerceAtMost(pages)} of $pages  •  $words words  •  ${document.body.text.length} characters", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            TextButton(onClick = { onZoom((zoom - 25).coerceAtLeast(50)) }) { Text("−") }
-            Text("$zoom%", style = MaterialTheme.typography.labelMedium)
-            TextButton(onClick = { onZoom((zoom + 25).coerceAtMost(175)) }) { Text("+") }
+            Text("  •  Page ${(activePage + 1).coerceAtMost(pages)} of $pages  •  $words words${if (compact) "" else "  •  ${document.body.text.length} characters"}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (!compact) {
+                TextButton(onClick = { onZoom((zoom - 25).coerceAtLeast(50)) }) { Text("−") }
+                Text("$zoom%", style = MaterialTheme.typography.labelMedium)
+                TextButton(onClick = { onZoom((zoom + 25).coerceAtMost(175)) }) { Text("+") }
+            }
         }
     }
 }

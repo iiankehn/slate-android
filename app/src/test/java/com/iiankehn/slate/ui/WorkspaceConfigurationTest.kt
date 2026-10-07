@@ -8,10 +8,21 @@ import org.junit.Test
 class WorkspaceConfigurationTest {
     @Test
     fun phoneUsesCompactWorkspace() {
-        val workspace = workspaceConfiguration(widthDp = 412)
+        val workspace = workspaceConfiguration(widthDp = 412, heightDp = 915)
 
         assertEquals(R2FormFactor.Phone, workspace.formFactor)
         assertEquals(NavigationPresentation.DestinationScreen, workspace.navigation)
+        assertEquals(ToolbarPresentation.CompactDock, workspace.toolbar)
+        assertEquals(PageScaleMode.FitWidth, workspace.pageScaleMode)
+    }
+
+    @Test
+    fun landscapePhoneStaysCompact() {
+        val workspace = workspaceConfiguration(widthDp = 915, heightDp = 412)
+
+        assertEquals(R2FormFactor.Phone, workspace.formFactor)
+        assertEquals(NavigationPresentation.DestinationScreen, workspace.navigation)
+        assertEquals(InspectorPresentation.ModalSheet, workspace.inspector)
         assertEquals(ToolbarPresentation.CompactDock, workspace.toolbar)
         assertEquals(PageScaleMode.FitWidth, workspace.pageScaleMode)
     }
