@@ -20,6 +20,12 @@ Common keyboard shortcuts include `Ctrl+B`, `Ctrl+I`, `Ctrl+U`, `Ctrl+F`, `Ctrl+
 
 Use search to match titles, body text, folders, or tags. Library filters expose active documents, favorites, archive, and trash. A document menu provides pin, favorite, duplicate, archive, trash, restore, and permanent delete where applicable.
 
+Choose **Folder & tags** from a document menu to assign a folder and comma-separated tags. Select an existing folder or type a new one; empty fields remove the corresponding organization. The library cards show folder and tag labels.
+
+Expand **Folders, tags & saved searches** below search to filter by an exact folder or tag. These filters combine with the selected library section and search text. Use **Clear filters** to remove folder and tag restrictions. **Save current search** remembers the search text on this device; selecting a saved search clears folder and tag restrictions and runs that text search in the current section. **Remove** deletes only the saved search.
+
+Choose **Version history** from a document menu to preview dated local checkpoints. Select **Restore this version**, then confirm to restore its content and organization as a new edit. The document stays in the library; this does not restore unrelated documents.
+
 Permanent deletion cannot be undone. Ordinary deletion moves a document to Trash first.
 
 ## Import and export
@@ -40,7 +46,7 @@ Slate cannot recover a forgotten backup passphrase. Keep the passphrase somewher
 
 ## Recover work
 
-Slate stores local checkpoints while you edit and saves the current snapshot after a short idle delay. Open version history where available to restore a prior checkpoint. After an interrupted write, Slate can recover a newer checkpoint during startup.
+Slate stores local checkpoints while you edit and saves the current snapshot after a short idle delay. Open **Version history** from a document menu in the start center to restore a prior checkpoint. After an interrupted write, Slate can recover a newer checkpoint during startup.
 
 ## Update Slate
 

@@ -1,6 +1,6 @@
 # Slate roadmap
 
-This roadmap describes the unified product after the Notes and Forge codebases were consolidated in October 2026. It is ordered by product risk and user value, not by separate R1/R2 tracks.
+This roadmap describes the unified product after the Notes and Forge codebases were consolidated in October 2025. It is ordered by product risk and user value, not by separate R1/R2 tracks.
 
 ## Delivered foundation
 
@@ -14,19 +14,19 @@ This roadmap describes the unified product after the Notes and Forge codebases w
 - Local autosave, checkpoints, startup recovery, archive, trash, favorites, folders, tags, and search
 - Manual verified updater
 - Password-encrypted whole-library backup and restore with integrity validation, preview, and conflict handling
+- Start-center folder/tag editing and filters, saved text searches, and version-history preview/restore
 - CI architecture inspection for ARM64 and x86_64 native libraries
 
 ## Next priorities
 
-1. Complete folder, tag, saved-search, and version-history controls in the Forge start center.
-2. Add a continuous, low-chrome canvas for Note documents without creating a second UI architecture.
-3. Surface contextual Forge suggestions only when users approach page-layout actions.
-4. Add a guided import assistant for installations of the former standalone Forge package.
-5. Complete TalkBack labeling, focus order, large text, contrast, keyboard navigation, and touch-target audits.
-6. Benchmark large documents, image-heavy packages, pagination, startup, autosave, and low-memory recovery.
-7. Expand migration, corrupt-package, fuzz, round-trip, and updater security tests.
-8. Add optional protected documents and encrypted exports without weakening local-first behavior.
-9. Explore templates, backlinks, attachments, quick capture, and reminders after the core is stable.
+1. Add a continuous, low-chrome canvas for Note documents without creating a second UI architecture.
+2. Surface contextual Forge suggestions only when users approach page-layout actions.
+3. Add a guided import assistant for installations of the former standalone Forge package.
+4. Complete TalkBack labeling, focus order, large text, contrast, keyboard navigation, and touch-target audits.
+5. Benchmark large documents, image-heavy packages, pagination, startup, autosave, and low-memory recovery.
+6. Expand migration, corrupt-package, fuzz, round-trip, and updater security tests.
+7. Add optional protected documents and encrypted exports without weakening local-first behavior.
+8. Explore templates, backlinks, attachments, quick capture, and reminders after the core is stable.
 
 ## Release gate
 

@@ -160,7 +160,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private enum class RibbonTab { File, Home, Insert, Layout, Review, View }
-private enum class LibraryFilter { Documents, Favorites, Archive, Trash }
 private enum class LayoutAction { Margins, Orientation, Size, Columns }
 private enum class ExportFormat(val label: String, val extension: String, val mime: String) {
     Slxf("Slate document (.slxf)", "slxf", SlxfCodec.MIME_TYPE),
@@ -478,6 +477,10 @@ fun SlateApp(viewModel: SlateViewModel) {
                 onTrash = { viewModel.moveToTrash(it) },
                 onRestore = { viewModel.restoreFromTrash(it) },
                 onDelete = viewModel::permanentlyDelete,
+                onOrganize = viewModel::updateOrganization,
+                history = uiState.history,
+                onLoadHistory = { viewModel.loadHistory(it.id) },
+                onRestoreVersion = viewModel::restoreVersion,
             )
             else -> WordProcessorWorkspace(
                 document = selected,
@@ -704,20 +707,47 @@ private fun StartCenter(
     onTrash: (Document) -> Unit,
     onRestore: (Document) -> Unit,
     onDelete: (Document) -> Unit,
+    onOrganize: (Document, String, Set<String>) -> Unit,
+    history: Map<String, List<Document>>,
+    onLoadHistory: (Document) -> Unit,
+    onRestoreVersion: (Document, Document) -> Unit,
 ) {
     val configuration = LocalConfiguration.current
     var filter by remember { mutableStateOf(LibraryFilter.Documents) }
     var query by remember { mutableStateOf("") }
+    var folder by remember { mutableStateOf<String?>(null) }
+    var tag by remember { mutableStateOf<String?>(null) }
+    var showOrganization by remember { mutableStateOf(false) }
+    var organizingId by remember { mutableStateOf<String?>(null) }
+    var historyId by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val searchPreferences = remember(context) {
+        context.getSharedPreferences("slate-library", android.content.Context.MODE_PRIVATE)
+    }
+    var savedSearches by remember {
+        mutableStateOf(searchPreferences.getStringSet("saved-searches", emptySet()).orEmpty().toSet())
+    }
+    fun saveSearches(values: Set<String>) {
+        savedSearches = values
+        searchPreferences.edit().putStringSet("saved-searches", values).apply()
+    }
     var libraryMenuExpanded by remember { mutableStateOf(false) }
-    val visibleDocuments = documents.filter { document ->
-        val inSection = when (filter) {
-            LibraryFilter.Documents -> !document.isDeleted && !document.isArchived
-            LibraryFilter.Favorites -> document.isFavorite && !document.isDeleted
-            LibraryFilter.Archive -> document.isArchived && !document.isDeleted
-            LibraryFilter.Trash -> document.isDeleted
-        }
-        val searchable = listOf(document.title, document.body.text, document.folder, document.tags.joinToString(" ")).joinToString(" ")
-        inSection && (query.isBlank() || searchable.contains(query.trim(), ignoreCase = true))
+    val visibleDocuments = documents.filter { matchesLibraryView(it, filter, query, folder, tag) }
+    documents.firstOrNull { it.id == organizingId }?.let { document ->
+        OrganizationDialog(
+            document = document,
+            folders = documents.filterNot { it.isDeleted }.map { it.folder }.filter(String::isNotBlank).distinct().sorted(),
+            onDismiss = { organizingId = null },
+            onSave = { newFolder, tags -> onOrganize(document, newFolder, tags); organizingId = null },
+        )
+    }
+    documents.firstOrNull { it.id == historyId }?.let { document ->
+        VersionHistoryDialog(
+            document = document,
+            versions = history[document.id],
+            onDismiss = { historyId = null },
+            onRestore = { version -> onRestoreVersion(document, version); historyId = null },
+        )
     }
     BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         val wide = maxWidth >= 840.dp
@@ -778,6 +808,28 @@ private fun StartCenter(
                                 FilterChip(selected = filter == item, onClick = { filter = item }, label = { Text(item.name) })
                             }
                         }
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = { showOrganization = !showOrganization }, modifier = Modifier.weight(1f)) {
+                                Text(if (showOrganization) "Hide organization" else "Folders, tags & saved searches")
+                            }
+                            if (folder != null || tag != null) TextButton(onClick = { folder = null; tag = null }) { Text("Clear filters") }
+                        }
+                        if (folder != null || tag != null) Text(
+                            listOfNotNull(folder?.let { "Folder: $it" }, tag?.let { "Tag: $it" }).joinToString(" · "),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                        if (showOrganization) LibraryOrganizationControls(
+                            documents = documents,
+                            folder = folder,
+                            tag = tag,
+                            query = query,
+                            savedSearches = savedSearches,
+                            onFolder = { folder = it },
+                            onTag = { tag = it },
+                            onSaveSearch = { query.trim().takeIf(String::isNotEmpty)?.let { saveSearches(savedSearches + it) } },
+                            onUseSearch = { query = it; folder = null; tag = null },
+                            onRemoveSearch = { saveSearches(savedSearches - it) },
+                        )
                     }
                 }
                 item {
@@ -803,6 +855,8 @@ private fun StartCenter(
                         onTrash = { onTrash(document) },
                         onRestore = { onRestore(document) },
                         onDelete = { onDelete(document) },
+                        onOrganize = { organizingId = document.id },
+                        onHistory = { historyId = document.id; onLoadHistory(document) },
                     )
                 }
             }
@@ -880,6 +934,8 @@ private fun RecentDocument(
     onTrash: () -> Unit,
     onRestore: () -> Unit,
     onDelete: () -> Unit,
+    onOrganize: () -> Unit,
+    onHistory: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     Surface(
@@ -894,15 +950,22 @@ private fun RecentDocument(
             }
             Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
                 Text(DocumentTitlePolicy.displayTitle(document.title, document.body.text), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (document.folder.isNotBlank() || document.tags.isNotEmpty()) Text(
+                    (listOf(document.folder).filter(String::isNotBlank) + document.tags.sorted().map { "#$it" }).joinToString(" · "),
+                    style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Text(document.body.text.lineSequence().firstOrNull { it.isNotBlank() } ?: "Blank document", maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(document.updatedLabel, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Box {
-                TextButton(onClick = { menuExpanded = true }) { Text("•••") }
+                TextButton(onClick = { menuExpanded = true }, modifier = Modifier.semantics { contentDescription = "Actions for ${DocumentTitlePolicy.displayTitle(document.title, document.body.text)}" }) { Text("•••") }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     if (!document.isDeleted) {
                         DropdownMenuItem(text = { Text(if (document.isPinned) "Unpin" else "Pin") }, onClick = { menuExpanded = false; onPin() })
                         DropdownMenuItem(text = { Text(if (document.isFavorite) "Remove favorite" else "Favorite") }, onClick = { menuExpanded = false; onFavorite() })
+                        DropdownMenuItem(text = { Text("Folder & tags") }, onClick = { menuExpanded = false; onOrganize() })
+                        DropdownMenuItem(text = { Text("Version history") }, onClick = { menuExpanded = false; onHistory() })
                         DropdownMenuItem(text = { Text("Duplicate") }, onClick = { menuExpanded = false; onDuplicate() })
                         DropdownMenuItem(text = { Text(if (document.isArchived) "Unarchive" else "Archive") }, onClick = { menuExpanded = false; onArchive() })
                         DropdownMenuItem(text = { Text("Move to Trash") }, onClick = { menuExpanded = false; onTrash() })
