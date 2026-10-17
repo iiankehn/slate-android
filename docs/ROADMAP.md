@@ -13,20 +13,20 @@ This roadmap describes the unified product after the Notes and Forge codebases w
 - Responsive phone, tablet, and expanded-window workspace
 - Local autosave, checkpoints, startup recovery, archive, trash, favorites, folders, tags, and search
 - Manual verified updater
+- Password-encrypted whole-library backup and restore with integrity validation, preview, and conflict handling
 - CI architecture inspection for ARM64 and x86_64 native libraries
 
 ## Next priorities
 
-1. Add encrypted whole-library backup and restore with preview, conflict handling, and integrity checks.
-2. Complete folder, tag, saved-search, and version-history controls in the Forge start center.
-3. Add a continuous, low-chrome canvas for Note documents without creating a second UI architecture.
-4. Surface contextual Forge suggestions only when users approach page-layout actions.
-5. Add a guided import assistant for installations of the former standalone Forge package.
-6. Complete TalkBack labeling, focus order, large text, contrast, keyboard navigation, and touch-target audits.
-7. Benchmark large documents, image-heavy packages, pagination, startup, autosave, and low-memory recovery.
-8. Expand migration, corrupt-package, fuzz, round-trip, and updater security tests.
-9. Add optional protected documents and encrypted exports without weakening local-first behavior.
-10. Explore templates, backlinks, attachments, quick capture, and reminders after the core is stable.
+1. Complete folder, tag, saved-search, and version-history controls in the Forge start center.
+2. Add a continuous, low-chrome canvas for Note documents without creating a second UI architecture.
+3. Surface contextual Forge suggestions only when users approach page-layout actions.
+4. Add a guided import assistant for installations of the former standalone Forge package.
+5. Complete TalkBack labeling, focus order, large text, contrast, keyboard navigation, and touch-target audits.
+6. Benchmark large documents, image-heavy packages, pagination, startup, autosave, and low-memory recovery.
+7. Expand migration, corrupt-package, fuzz, round-trip, and updater security tests.
+8. Add optional protected documents and encrypted exports without weakening local-first behavior.
+9. Explore templates, backlinks, attachments, quick capture, and reminders after the core is stable.
 
 ## Release gate
 

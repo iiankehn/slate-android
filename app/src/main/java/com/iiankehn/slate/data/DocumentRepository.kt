@@ -49,6 +49,14 @@ class DocumentRepository(
     suspend fun history(documentId: String): List<Document> =
         dao.getRecoveryEntries(documentId).map(RecoveryEntryEntity::toModel)
 
+    suspend fun restore(documents: List<Document>) {
+        val normalized = documents.map { it.copy(body = it.body.normalized()) }
+        dao.replaceDocuments(
+            documents = normalized.map { it.toEntity() },
+            rangesByDocument = normalized.map { it.toRangeEntities() },
+        )
+    }
+
     suspend fun permanentlyDelete(document: Document) {
         dao.deleteDocument(document.id)
     }

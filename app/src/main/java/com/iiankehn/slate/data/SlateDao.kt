@@ -39,6 +39,21 @@ abstract class SlateDao {
         if (ranges.isNotEmpty()) insertRanges(ranges)
     }
 
+    @Transaction
+    open suspend fun replaceDocuments(
+        documents: List<DocumentEntity>,
+        rangesByDocument: List<List<RichTextRangeEntity>>,
+    ) {
+        require(documents.size == rangesByDocument.size)
+        documents.indices.forEach { index ->
+            val document = documents[index]
+            upsertDocument(document)
+            deleteRanges(document.id)
+            val ranges = rangesByDocument[index]
+            if (ranges.isNotEmpty()) insertRanges(ranges)
+        }
+    }
+
     @Query("DELETE FROM documents WHERE id = :documentId")
     abstract suspend fun deleteDocument(documentId: String)
 

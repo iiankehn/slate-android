@@ -29,6 +29,7 @@ The same Forge-derived interface is used for both experiences. The library label
 - Rich text, lists, checklists, links, images, tables, find, undo, redo, and keyboard shortcuts
 - Sections, page setup, headers and footers, page breaks, and paginated layout
 - Local Room database with autosave, recovery checkpoints, and version history
+- Password-encrypted whole-library backup and previewed restore with conflict handling
 - Import from `.slx`, `.slxf`, TXT, Markdown, and DOCX
 - Export to `.slx`, `.slxf`, TXT, Markdown, DOCX, and PDF; system share and print support
 - Manual native updater with SHA-256 verification and Android signature enforcement
@@ -40,6 +41,7 @@ The same Forge-derived interface is used for both experiences. The library label
 | --- | --- |
 | `.slx` | Portable rich-note document for Note-compatible content |
 | `.slxf` | Lossless Slate document for complete Forge page and layout features |
+| `.slatebackup` | Authenticated, password-encrypted whole-library backup |
 
 Slate chooses the appropriate experience from document structure when importing. Exporting to `.slx` can simplify Forge-only layout, but never changes the original `.slxf` document.
 

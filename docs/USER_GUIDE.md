@@ -30,6 +30,14 @@ Use `.slx` for portable Note-compatible content and `.slxf` for complete Forge f
 
 When exporting Forge content as `.slx`, page-specific features may simplify in the exported copy. The original document is not changed.
 
+## Back up and restore the library
+
+Open **Library → Encrypted backup** from the start center, or use **File → Library → Backup** in the editor. Choose and confirm a passphrase of at least eight characters, then save the `.slatebackup` file through Android's system picker. The file includes active, archived, and trashed documents plus embedded Slate document images.
+
+To restore, choose **Restore backup**, select the file, and enter its passphrase. Slate verifies the encrypted container and every embedded `.slxf` package before showing a preview. If document identities overlap, choose whether to keep both copies, replace the current items, or retain whichever version is newer.
+
+Slate cannot recover a forgotten backup passphrase. Keep the passphrase somewhere safe and separate from the backup file.
+
 ## Recover work
 
 Slate stores local checkpoints while you edit and saves the current snapshot after a short idle delay. Open version history where available to restore a prior checkpoint. After an interrupted write, Slate can recover a newer checkpoint during startup.

@@ -103,6 +103,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextIndent
@@ -110,11 +111,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.iiankehn.slate.SlateViewModel
+import com.iiankehn.slate.BackupConflictPolicy
 import com.iiankehn.slate.R
 import com.iiankehn.slate.io.AndroidDocumentActions
 import com.iiankehn.slate.io.DocumentFormats
 import com.iiankehn.slate.io.DocxEmbeddedImage
 import com.iiankehn.slate.io.R2DocumentBridge
+import com.iiankehn.slate.io.LibraryBackup
+import com.iiankehn.slate.io.LibraryBackupCodec
+import com.iiankehn.slate.io.LibraryBackupDocument
 import com.iiankehn.slate.io.SlxAsset
 import com.iiankehn.slate.io.SlxCodec
 import com.iiankehn.slate.io.SlxfCodec
@@ -150,6 +155,9 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 private enum class RibbonTab { File, Home, Insert, Layout, Review, View }
 private enum class LibraryFilter { Documents, Favorites, Archive, Trash }
@@ -178,6 +186,16 @@ fun SlateApp(viewModel: SlateViewModel) {
     var pendingExport by remember { mutableStateOf<ExportRequest?>(null) }
     var pendingImageUri by remember { mutableStateOf<String?>(null) }
     var pendingUpdate by remember { mutableStateOf<SlateUpdate?>(null) }
+    var pendingBackupBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var pendingRestoreBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var backupPreview by remember { mutableStateOf<LibraryBackup?>(null) }
+    var showCreateBackup by remember { mutableStateOf(false) }
+    var showRestorePassword by remember { mutableStateOf(false) }
+    var backupPassphrase by remember { mutableStateOf("") }
+    var backupPassphraseConfirmation by remember { mutableStateOf("") }
+    var restorePassphrase by remember { mutableStateOf("") }
+    var backupBusy by remember { mutableStateOf(false) }
+    var conflictPolicy by remember { mutableStateOf(BackupConflictPolicy.KeepBoth) }
     val selected = uiState.documents.firstOrNull { it.id == selectedId }
 
     fun downloadUpdate(update: SlateUpdate) {
@@ -282,6 +300,138 @@ fun SlateApp(viewModel: SlateViewModel) {
         }
     }
 
+    val backupSaveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(LibraryBackupCodec.MIME_TYPE),
+    ) { uri ->
+        val bytes = pendingBackupBytes
+        pendingBackupBytes = null
+        if (uri != null && bytes != null) scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri, "w")?.use { it.write(bytes) }
+                        ?: error("Unable to write the backup file.")
+                }
+            }.onSuccess { Toast.makeText(context, "Encrypted Slate backup saved", Toast.LENGTH_LONG).show() }
+                .onFailure { Toast.makeText(context, it.message ?: "Backup failed", Toast.LENGTH_LONG).show() }
+        }
+    }
+
+    val backupOpenLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        input.readBytes().also { require(it.size <= 512 * 1024 * 1024) { "The backup exceeds the 512 MB limit." } }
+                    } ?: error("Unable to read the backup file.")
+                }
+            }.onSuccess { bytes ->
+                pendingRestoreBytes = bytes
+                restorePassphrase = ""
+                showRestorePassword = true
+            }.onFailure { Toast.makeText(context, it.message ?: "Unable to open backup", Toast.LENGTH_LONG).show() }
+        }
+    }
+
+    fun createEncryptedBackup() {
+        if (backupPassphrase.length < 8) {
+            Toast.makeText(context, "Use at least 8 characters.", Toast.LENGTH_LONG).show()
+            return
+        }
+        if (backupPassphrase != backupPassphraseConfirmation) {
+            Toast.makeText(context, "The passphrases do not match.", Toast.LENGTH_LONG).show()
+            return
+        }
+        val passphrase = backupPassphrase.toCharArray()
+        backupBusy = true
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val entries = uiState.documents.map { document ->
+                        LibraryBackupDocument(
+                            id = document.id,
+                            title = document.title,
+                            updatedAtEpochMillis = document.updatedAtEpochMillis,
+                            isPinned = document.isPinned,
+                            isArchived = document.isArchived,
+                            isFavorite = document.isFavorite,
+                            isDeleted = document.isDeleted,
+                            folder = document.folder,
+                            tags = document.tags,
+                            experience = document.experience,
+                            slxfPackage = DocumentFormats.exportSlxf(document, collectForgeAssetsStrict(context, document)),
+                        )
+                    }
+                    LibraryBackupCodec.encrypt(LibraryBackup(System.currentTimeMillis(), entries), passphrase)
+                }
+            }.onSuccess { bytes ->
+                pendingBackupBytes = bytes
+                showCreateBackup = false
+                backupPassphrase = ""
+                backupPassphraseConfirmation = ""
+                backupSaveLauncher.launch("Slate-library-${java.time.LocalDate.now()}.${LibraryBackupCodec.FILE_EXTENSION}")
+            }.onFailure { Toast.makeText(context, it.message ?: "Backup failed", Toast.LENGTH_LONG).show() }
+            passphrase.fill('\u0000')
+            backupBusy = false
+        }
+    }
+
+    fun unlockBackup() {
+        val bytes = pendingRestoreBytes ?: return
+        val passphrase = restorePassphrase.toCharArray()
+        backupBusy = true
+        scope.launch {
+            runCatching { withContext(Dispatchers.Default) { LibraryBackupCodec.decrypt(bytes, passphrase) } }
+                .onSuccess { backup ->
+                    backupPreview = backup
+                    showRestorePassword = false
+                    restorePassphrase = ""
+                    conflictPolicy = BackupConflictPolicy.KeepBoth
+                }
+                .onFailure { Toast.makeText(context, it.message ?: "Unable to unlock backup", Toast.LENGTH_LONG).show() }
+            passphrase.fill('\u0000')
+            backupBusy = false
+        }
+    }
+
+    fun restoreBackup() {
+        val backup = backupPreview ?: return
+        backupBusy = true
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    backup.documents.map { entry ->
+                        val imported = materializeImportedImages(context, DocumentFormats.importSlxf(entry.slxfPackage))
+                        Document(
+                            id = entry.id,
+                            title = entry.title,
+                            body = imported.body,
+                            updatedLabel = "Restored",
+                            isPinned = entry.isPinned,
+                            isArchived = entry.isArchived,
+                            isFavorite = entry.isFavorite,
+                            isDeleted = entry.isDeleted,
+                            folder = entry.folder,
+                            tags = entry.tags,
+                            updatedAtEpochMillis = entry.updatedAtEpochMillis,
+                            wordProcessingDocument = imported.wordProcessingDocument?.copy(id = entry.id, title = entry.title),
+                            experience = entry.experience,
+                        )
+                    }
+                }
+            }.onSuccess { documents ->
+                viewModel.restoreBackup(documents, conflictPolicy) { count ->
+                    backupPreview = null
+                    pendingRestoreBytes = null
+                    backupBusy = false
+                    Toast.makeText(context, "Restored $count document${if (count == 1) "" else "s"}", Toast.LENGTH_LONG).show()
+                }
+            }.onFailure {
+                backupBusy = false
+                Toast.makeText(context, it.message ?: "Restore failed", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     fun export(document: Document, format: ExportFormat) {
         pendingExport = ExportRequest(document, format)
         val title = DocumentTitlePolicy.displayTitle(document.title, document.body.text)
@@ -315,6 +465,8 @@ fun SlateApp(viewModel: SlateViewModel) {
                 // therefore disable otherwise valid .slx and .slxf files in the system picker.
                 // Let the user select a file, then validate its extension and payload above.
                 onImport = { importLauncher.launch(arrayOf("*/*")) },
+                onBackup = { showCreateBackup = true },
+                onRestoreBackup = { backupOpenLauncher.launch(arrayOf("*/*")) },
                 onOpen = { selectedId = it.id },
                 onDuplicate = { viewModel.duplicateDocument(it) },
                 onPin = { viewModel.togglePin(it) },
@@ -331,6 +483,8 @@ fun SlateApp(viewModel: SlateViewModel) {
                 onChange = viewModel::updateDocument,
                 onNew = ::createBlank,
                 onImport = { importLauncher.launch(arrayOf("*/*")) },
+                onBackup = { showCreateBackup = true },
+                onRestoreBackup = { backupOpenLauncher.launch(arrayOf("*/*")) },
                 pendingImageUri = pendingImageUri,
                 onChooseImage = { imageLauncher.launch(arrayOf("image/*")) },
                 onImageConsumed = { pendingImageUri = null },
@@ -349,6 +503,100 @@ fun SlateApp(viewModel: SlateViewModel) {
                 },
             )
         }
+    }
+    if (showCreateBackup) {
+        AlertDialog(
+            onDismissRequest = { if (!backupBusy) showCreateBackup = false },
+            title = { Text("Encrypt library backup") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Slate will package every document—including archived and trashed items—and encrypt it before Android saves the file.")
+                    OutlinedTextField(
+                        value = backupPassphrase,
+                        onValueChange = { backupPassphrase = it },
+                        label = { Text("Passphrase") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        enabled = !backupBusy,
+                    )
+                    OutlinedTextField(
+                        value = backupPassphraseConfirmation,
+                        onValueChange = { backupPassphraseConfirmation = it },
+                        label = { Text("Confirm passphrase") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        enabled = !backupBusy,
+                    )
+                    Text("Slate cannot recover a forgotten passphrase.", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            confirmButton = { TextButton(onClick = ::createEncryptedBackup, enabled = !backupBusy) { Text(if (backupBusy) "Encrypting…" else "Continue") } },
+            dismissButton = { TextButton(onClick = { showCreateBackup = false }, enabled = !backupBusy) { Text("Cancel") } },
+        )
+    }
+    if (showRestorePassword) {
+        AlertDialog(
+            onDismissRequest = { if (!backupBusy) { showRestorePassword = false; pendingRestoreBytes = null } },
+            title = { Text("Unlock Slate backup") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Enter the passphrase to verify the backup and preview its contents. Nothing will be restored yet.")
+                    OutlinedTextField(
+                        value = restorePassphrase,
+                        onValueChange = { restorePassphrase = it },
+                        label = { Text("Passphrase") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        enabled = !backupBusy,
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = ::unlockBackup, enabled = !backupBusy && restorePassphrase.isNotEmpty()) { Text(if (backupBusy) "Verifying…" else "Preview") } },
+            dismissButton = { TextButton(onClick = { showRestorePassword = false; pendingRestoreBytes = null }, enabled = !backupBusy) { Text("Cancel") } },
+        )
+    }
+    backupPreview?.let { backup ->
+        val currentIds = uiState.documents.map(Document::id).toSet()
+        val conflicts = backup.documents.count { it.id in currentIds }
+        val created = remember(backup.createdAtEpochMillis) {
+            DateTimeFormatter.ofPattern("MMM d, yyyy · h:mm a")
+                .withZone(ZoneId.systemDefault())
+                .format(Instant.ofEpochMilli(backup.createdAtEpochMillis))
+        }
+        AlertDialog(
+            onDismissRequest = { if (!backupBusy) { backupPreview = null; pendingRestoreBytes = null } },
+            title = { Text("Restore preview") },
+            text = {
+                Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("${backup.documents.size} document${if (backup.documents.size == 1) "" else "s"} · Created $created")
+                    if (conflicts > 0) {
+                        Text("$conflicts document${if (conflicts == 1) " has" else "s have"} the same identity as an item already in this library.")
+                        Text("When a document already exists", style = MaterialTheme.typography.labelLarge)
+                        BackupConflictPolicy.entries.forEach { policy ->
+                            FilterChip(
+                                selected = conflictPolicy == policy,
+                                onClick = { conflictPolicy = policy },
+                                label = { Text(when (policy) {
+                                    BackupConflictPolicy.KeepBoth -> "Keep both"
+                                    BackupConflictPolicy.ReplaceExisting -> "Replace existing"
+                                    BackupConflictPolicy.KeepNewer -> "Keep newer version"
+                                }) },
+                            )
+                        }
+                    }
+                    HorizontalDivider()
+                    backup.documents.take(12).forEach { entry ->
+                        Column {
+                            Text(entry.title.ifBlank { "Untitled document" }, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(listOfNotNull(entry.folder.takeIf(String::isNotBlank), entry.experience.name).joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    if (backup.documents.size > 12) Text("And ${backup.documents.size - 12} more…", style = MaterialTheme.typography.labelMedium)
+                }
+            },
+            confirmButton = { TextButton(onClick = ::restoreBackup, enabled = !backupBusy) { Text(if (backupBusy) "Restoring…" else "Restore") } },
+            dismissButton = { TextButton(onClick = { backupPreview = null; pendingRestoreBytes = null }, enabled = !backupBusy) { Text("Cancel") } },
+        )
     }
 }
 
@@ -400,6 +648,24 @@ private fun collectForgeAssets(context: android.content.Context, document: Docum
     }.toMap()
 }
 
+private fun collectForgeAssetsStrict(context: android.content.Context, document: Document): Map<String, SlxAsset> {
+    val forge = document.wordProcessingDocument ?: R2DocumentBridge.fromLegacy(document)
+    return forge.sections.flatMap { it.blocks }.filterIsInstance<ImageBlock>().associate { image ->
+        val uri = Uri.parse(image.sourceUri)
+        val bytes = if (uri.scheme == "file") File(requireNotNull(uri.path)).readBytes()
+        else context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: error("Unable to read an image in ${document.title.ifBlank { "an untitled document" }}.")
+        val mime = context.contentResolver.getType(uri) ?: when (File(uri.path.orEmpty()).extension.lowercase()) {
+            "jpg", "jpeg" -> "image/jpeg"
+            "gif" -> "image/gif"
+            "webp" -> "image/webp"
+            else -> "image/png"
+        }
+        val extension = when (mime) { "image/jpeg" -> "jpg"; "image/gif" -> "gif"; "image/webp" -> "webp"; else -> "png" }
+        image.id to SlxAsset(image.id, extension, mime, bytes)
+    }
+}
+
 private fun collectSharedAssets(context: android.content.Context, document: Document): Pair<Document, List<SlxAsset>> {
     val sharedBody = document.wordProcessingDocument?.let(R2DocumentBridge::toLegacyBody) ?: document.body
     val assets = mutableListOf<SlxAsset>()
@@ -425,6 +691,8 @@ private fun StartCenter(
     onNew: () -> Unit,
     onTemplate: (TemplateKind) -> Unit,
     onImport: () -> Unit,
+    onBackup: () -> Unit,
+    onRestoreBackup: () -> Unit,
     onOpen: (Document) -> Unit,
     onDuplicate: (Document) -> Unit,
     onPin: (Document) -> Unit,
@@ -437,6 +705,7 @@ private fun StartCenter(
     val configuration = LocalConfiguration.current
     var filter by remember { mutableStateOf(LibraryFilter.Documents) }
     var query by remember { mutableStateOf("") }
+    var libraryMenuExpanded by remember { mutableStateOf(false) }
     val visibleDocuments = documents.filter { document ->
         val inSection = when (filter) {
             LibraryFilter.Documents -> !document.isDeleted && !document.isArchived
@@ -464,6 +733,13 @@ private fun StartCenter(
                 ) {
                     Text("Slate", style = if (shortWindow) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
                     Text("Private • Local", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Box {
+                        TextButton(onClick = { libraryMenuExpanded = true }) { Text("Library") }
+                        DropdownMenu(expanded = libraryMenuExpanded, onDismissRequest = { libraryMenuExpanded = false }) {
+                            DropdownMenuItem(text = { Text("Encrypted backup") }, onClick = { libraryMenuExpanded = false; onBackup() })
+                            DropdownMenuItem(text = { Text("Restore backup") }, onClick = { libraryMenuExpanded = false; onRestoreBackup() })
+                        }
+                    }
                 }
             }
             LazyColumn(
@@ -645,6 +921,8 @@ private fun WordProcessorWorkspace(
     onChange: (Document) -> Unit,
     onNew: () -> Unit,
     onImport: () -> Unit,
+    onBackup: () -> Unit,
+    onRestoreBackup: () -> Unit,
     pendingImageUri: String?,
     onChooseImage: () -> Unit,
     onImageConsumed: () -> Unit,
@@ -761,6 +1039,7 @@ private fun WordProcessorWorkspace(
                 Ribbon(
                     tab = activeTab, compact = !tablet, dense = shortWindow, document = document, selection = editorValue.selection,
                     onToggle = ::toggle, onInsert = ::insert, onNew = onNew, onOpen = onImport,
+                    onBackup = onBackup, onRestoreBackup = onRestoreBackup,
                     onToggleList = ::toggleList,
                     onAdjustListLevel = ::adjustListLevel,
                     onPageBreak = { publish(editor.insertPageBreak(editorValue.selection.min, editorValue.selection.max)) },
@@ -956,6 +1235,8 @@ private fun Ribbon(
     onCustomPageSize: () -> Unit,
     onNew: () -> Unit,
     onOpen: () -> Unit,
+    onBackup: () -> Unit,
+    onRestoreBackup: () -> Unit,
     onExport: (ExportFormat) -> Unit,
     onShare: () -> Unit,
     onPrint: () -> Unit,
@@ -972,6 +1253,7 @@ private fun Ribbon(
                 RibbonTab.File -> {
                     RibbonGroup("Document") { RibbonCommand("New", onNew); RibbonCommand("Open", onOpen) }
                     RibbonGroup("Export") { ExportMenu(onExport); RibbonCommand("Share", onShare); RibbonCommand("Print", onPrint) }
+                    RibbonGroup("Library") { RibbonCommand("Backup", onBackup); RibbonCommand("Restore", onRestoreBackup) }
                     RibbonGroup("Slate") { RibbonCommand("Updates", onCheckUpdates) }
                 }
                 RibbonTab.Home -> {

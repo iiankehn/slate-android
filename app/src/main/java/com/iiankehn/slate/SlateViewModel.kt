@@ -26,6 +26,8 @@ data class SlateUiState(
     val history: Map<String, List<Document>> = emptyMap(),
 )
 
+enum class BackupConflictPolicy { KeepBoth, ReplaceExisting, KeepNewer }
+
 class SlateViewModel(
     private val repository: DocumentRepository,
 ) : ViewModel() {
@@ -162,6 +164,35 @@ class SlateViewModel(
                 tags = version.tags,
             ),
         )
+    }
+
+    fun restoreBackup(documents: List<Document>, policy: BackupConflictPolicy, onComplete: (Int) -> Unit) {
+        viewModelScope.launch {
+            pendingSaves.values.forEach { it.cancel() }
+            pendingSaves.clear()
+            saveGenerations.clear()
+            val currentById = mutableUiState.value.documents.associateBy(Document::id)
+            val restored = documents.mapNotNull { incoming ->
+                val current = currentById[incoming.id]
+                when {
+                    current == null -> incoming
+                    policy == BackupConflictPolicy.ReplaceExisting -> incoming
+                    policy == BackupConflictPolicy.KeepNewer && incoming.updatedAtEpochMillis > current.updatedAtEpochMillis -> incoming
+                    policy == BackupConflictPolicy.KeepNewer -> null
+                    else -> {
+                        val restoredId = UUID.randomUUID().toString()
+                        val restoredTitle = "${DocumentTitlePolicy.displayTitle(incoming.title, incoming.body.text)} (restored)"
+                        incoming.copy(
+                            id = restoredId,
+                            title = restoredTitle,
+                            wordProcessingDocument = incoming.wordProcessingDocument?.copy(id = restoredId, title = restoredTitle),
+                        )
+                    }
+                }
+            }
+            repository.restore(restored)
+            onComplete(restored.size)
+        }
     }
 
     fun permanentlyDelete(source: Document) {

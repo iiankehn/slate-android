@@ -10,6 +10,8 @@
 | Organization | Pin, favorite, folder, tags, archive, trash, restore, and duplicate |
 | Recovery | Autosave plus up to 30 local checkpoints per document |
 | Import | Adds supported external documents to the same library |
+| Library backup | Password-encrypted `.slatebackup` file with authenticated integrity checks |
+| Library restore | Preview plus keep-both, replace-existing, or keep-newer conflict behavior |
 
 ## Editing
 
@@ -54,4 +56,4 @@ Ordinary text, rich formatting, links, and simple content remain Note-compatible
 - DOCX is an interchange format, not a claim of Microsoft Word layout parity.
 - Exporting a Forge document to `.slx` may simplify page-only features; the source remains unchanged.
 - The start center does not yet expose every folder, tag, saved-search, and history control supported by the data layer.
-- Whole-library encrypted backup and guided migration from the former standalone Forge app remain roadmap items.
+- Guided migration from the former standalone Forge app remains a roadmap item.
