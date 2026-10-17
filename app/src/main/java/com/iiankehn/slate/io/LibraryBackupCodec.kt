@@ -117,7 +117,7 @@ object LibraryBackupCodec {
                 data.writeBoolean(document.isDeleted)
                 data.writeString(document.folder)
                 data.writeInt(document.tags.size)
-                document.tags.sorted().forEach(data::writeString)
+                document.tags.sorted().forEach { tag -> data.writeString(tag) }
                 data.writeString(document.experience.name)
                 data.writeInt(document.slxfPackage.size)
                 data.write(document.slxfPackage)

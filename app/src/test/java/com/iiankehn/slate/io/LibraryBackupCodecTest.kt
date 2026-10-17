@@ -76,7 +76,13 @@ class LibraryBackupCodecTest {
             document = WordProcessingDocument(
                 id = id,
                 title = title,
-                sections = listOf(DocumentSection(blocks = listOf(ParagraphBlock(runs = listOf(com.iiankehn.slate.model.TextRun(text))))))),
+                sections = listOf(
+                    DocumentSection(
+                        blocks = listOf(
+                            ParagraphBlock(runs = listOf(com.iiankehn.slate.model.TextRun(text))),
+                        ),
+                    ),
+                ),
             ),
             sourceRevision = 1,
         ),
