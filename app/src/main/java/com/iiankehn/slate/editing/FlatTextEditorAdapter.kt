@@ -176,6 +176,7 @@ class FlatTextEditorAdapter(initial: WordProcessingDocument) {
     fun redo(): FlatEditorState { session.redo(); return state() }
 
     fun legacyBody() = R2DocumentBridge.toLegacyBody(document)
+    fun editableBody() = R2DocumentBridge.toEditableBody(document)
 }
 
 private class FlatDocumentIndex(document: WordProcessingDocument) {

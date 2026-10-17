@@ -44,11 +44,11 @@ class CanvasPresentationTest {
         assertFalse(usesContinuousCanvas(document(editor.document, experience)))
     }
 
-    @Test fun imageNotesKeepObjectCapableCanvas() {
+    @Test fun imageNotesUseContinuousCanvas() {
         val word = WordProcessingDocument("doc", "Draft", sections = listOf(DocumentSection(
             blocks = listOf(ParagraphBlock(), ImageBlock(id = "image-1", sourceUri = "file:///image.png")),
         )))
         assertEquals(DocumentExperience.Notes, DocumentExperiencePolicy.effective(document(word)))
-        assertFalse(usesContinuousCanvas(document(word)))
+        assertTrue(usesContinuousCanvas(document(word)))
     }
 }

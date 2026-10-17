@@ -437,6 +437,8 @@ class DocumentEditingEngine(
         val updatedBlocks = buildList {
             addAll(section.blocks.take(selection.start.blockIndex))
             addAll(replacement)
+            // Paragraph text selections do not implicitly select embedded objects.
+            addAll(section.blocks.subList(selection.start.blockIndex, selection.end.blockIndex + 1).filterNot { it is ParagraphBlock })
             addAll(section.blocks.drop(selection.end.blockIndex + 1))
         }
         val caret = DocumentPosition(
@@ -476,8 +478,14 @@ class DocumentEditingEngine(
                 style = if (index == lines.lastIndex) endBlock.style else startBlock.style,
             )
         }
+        val preservedObjects = snapshot.document.sections.subList(start.sectionIndex, end.sectionIndex + 1)
+            .flatMapIndexed { index, section ->
+                val first = if (index == 0) start.blockIndex else 0
+                val last = if (index == end.sectionIndex - start.sectionIndex) end.blockIndex + 1 else section.blocks.size
+                section.blocks.subList(first, last).filterNot { it is ParagraphBlock }
+            }
         val combined = endSection.copy(
-            blocks = startSection.blocks.take(start.blockIndex) + replacement + endSection.blocks.drop(end.blockIndex + 1),
+            blocks = startSection.blocks.take(start.blockIndex) + replacement + preservedObjects + endSection.blocks.drop(end.blockIndex + 1),
             start = startSection.start,
         )
         val sections = buildList {

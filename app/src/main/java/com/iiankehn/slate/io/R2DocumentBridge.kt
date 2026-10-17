@@ -25,10 +25,15 @@ object R2DocumentBridge {
         )
     }
 
-    fun toLegacyBody(document: WordProcessingDocument): RichTextDocument {
+    fun toLegacyBody(document: WordProcessingDocument): RichTextDocument = buildBody(document, includeObjects = true)
+
+    /** The shared text editor edits paragraphs; objects have their own controls. */
+    fun toEditableBody(document: WordProcessingDocument): RichTextDocument = buildBody(document, includeObjects = false)
+
+    private fun buildBody(document: WordProcessingDocument, includeObjects: Boolean): RichTextDocument {
         val text = StringBuilder()
         val ranges = mutableListOf<RichTextRange>()
-        document.sections.flatMap { it.blocks }.forEachIndexed { blockIndex, block ->
+        document.sections.flatMap { it.blocks }.filter { includeObjects || it is ParagraphBlock }.forEachIndexed { blockIndex, block ->
             if (blockIndex > 0) text.append('\n')
             when (block) {
                 is ParagraphBlock -> {

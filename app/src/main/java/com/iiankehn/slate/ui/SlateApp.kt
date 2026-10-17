@@ -1014,13 +1014,14 @@ private fun WordProcessorWorkspace(
     var showCustomPageSizeEditor by remember(document.id) { mutableStateOf(false) }
     val continuousCanvas = usesContinuousCanvas(document)
     val editor = remember(document.id) { FlatTextEditorAdapter(document.wordProcessingDocument ?: R2DocumentBridge.fromLegacy(document)) }
-    var editorValue by remember(document.id) { mutableStateOf(TextFieldValue(annotatedBody(editor.legacyBody(), editor.document))) }
+    var editorValue by remember(document.id) { mutableStateOf(TextFieldValue(annotatedBody(editor.editableBody(), editor.document))) }
     var selectedObjectId by remember(document.id) { mutableStateOf<String?>(null) }
     val focusRequester = remember { FocusRequester() }
     fun publish(state: com.iiankehn.slate.editing.FlatEditorState) {
         val body = editor.legacyBody()
+        val editableBody = editor.editableBody()
         val selection = TextRange(state.selectionStart, state.selectionEnd)
-        editorValue = TextFieldValue(annotatedBody(body, editor.document), selection.coerceIn(0, body.text.length))
+        editorValue = TextFieldValue(annotatedBody(editableBody, editor.document), selection.coerceIn(0, editableBody.text.length))
         selectedObjectId = editor.selectedObjectId
         onChange(document.copy(
             body = body,
@@ -1041,7 +1042,7 @@ private fun WordProcessorWorkspace(
         publish(state)
     }
     fun insert(text: String) {
-        val selection = editorValue.selection.coerceIn(0, document.body.text.length)
+        val selection = editorValue.selection.coerceIn(0, editorValue.text.length)
         val nextText = editorValue.text.replaceRange(selection.min, selection.max, text)
         publish(editor.replace(nextText, selection.min + text.length, selection.min + text.length))
         focusRequester.requestFocus()
@@ -1573,6 +1574,11 @@ private fun ContinuousNoteCanvas(
     onRedo: () -> Unit,
     onTab: (Boolean) -> Unit,
     onToggleChecklistItem: (String) -> Unit,
+    onUpdateImage: (String, String, Float?, Float?, ImageWrapping) -> Unit,
+    onMoveImage: (String, Float, Float) -> Unit,
+    onDeleteObject: (String) -> Unit,
+    selectedObjectId: String?,
+    onSelectObject: (String?) -> Unit,
 ) {
     var textLayout by remember(document.id) { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -1586,6 +1592,13 @@ private fun ContinuousNoteCanvas(
             ),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            document.sections.flatMap { it.blocks }.filterIsInstance<ImageBlock>().forEach { image ->
+                androidx.compose.runtime.key(image.id) {
+                    Box(Modifier.widthIn(max = 880.dp).fillMaxWidth().padding(bottom = 16.dp)) {
+                        EditableImage(image, image.id == selectedObjectId, onSelectObject, onUpdateImage, onMoveImage, onDeleteObject)
+                    }
+                }
+            }
             Box(Modifier.widthIn(max = 880.dp).fillMaxWidth()) {
                 BasicTextField(
                     value = value,
@@ -1677,7 +1690,10 @@ private fun DocumentCanvas(
     onActivePageChange: (Int) -> Unit,
 ) {
     if (continuous) {
-        ContinuousNoteCanvas(value, document, zoom, compact, focusRequester, onValueChange, onToggle, onUndo, onRedo, onTab, onToggleChecklistItem)
+        ContinuousNoteCanvas(
+            value, document, zoom, compact, focusRequester, onValueChange, onToggle, onUndo, onRedo, onTab,
+            onToggleChecklistItem, onUpdateImage, onMoveImage, onDeleteObject, selectedObjectId, onSelectObject,
+        )
         return
     }
     val layout = remember(document) { DocumentLayoutEngine().layout(document) }
@@ -2037,9 +2053,9 @@ private fun EditableImage(
                     true
                 } else false
             },
-        color = Color(0xFFF7F9FC),
+        color = MaterialTheme.colorScheme.surfaceContainer,
         shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(if (selected) 3.dp else 1.dp, if (selected) CoreBlue else Color(0xFFCAD3DF)),
+        border = BorderStroke(if (selected) 3.dp else 1.dp, if (selected) CoreBlue else MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (bitmap != null) {
@@ -2050,7 +2066,7 @@ private fun EditableImage(
                     modifier = Modifier.widthIn(max = width.coerceIn(120f, 720f).dp).fillMaxWidth().heightIn(max = height.coerceIn(120f, 420f).dp),
                 )
             } else {
-                Box(Modifier.fillMaxWidth().height(120.dp).background(Color(0xFFE8EDF5), RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxWidth().height(120.dp).background(MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
                     Text("Picture preview unavailable", color = SlateEditorTheme.colors.onPaper.copy(alpha = 0.62f))
                 }
             }
@@ -2065,14 +2081,14 @@ private fun EditableImage(
                     inner()
                 },
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = { onUpdate(image.id, image.description, (width - 36f).coerceAtLeast(72f), (height - 24f).coerceAtLeast(48f), image.wrapping) }) { Text("Smaller") }
                 TextButton(onClick = { onUpdate(image.id, image.description, width + 36f, height + 24f, image.wrapping) }) { Text("Larger") }
                 TextButton(onClick = {
                     val next = ImageWrapping.entries[(image.wrapping.ordinal + 1) % ImageWrapping.entries.size]
                     onUpdate(image.id, image.description, image.widthPoints, image.heightPoints, next)
                 }) { Text(image.wrapping.name) }
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.width(8.dp))
                 TextButton(onClick = { onDelete(image.id) }) { Text("Delete") }
             }
             if (selected) {
