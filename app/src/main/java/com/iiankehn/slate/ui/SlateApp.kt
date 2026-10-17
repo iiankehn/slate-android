@@ -419,11 +419,14 @@ fun SlateApp(viewModel: SlateViewModel) {
                     }
                 }
             }.onSuccess { documents ->
-                viewModel.restoreBackup(documents, conflictPolicy) { count ->
+                runCatching { viewModel.restoreBackup(documents, conflictPolicy) }.onSuccess { count ->
                     backupPreview = null
                     pendingRestoreBytes = null
                     backupBusy = false
                     Toast.makeText(context, "Restored $count document${if (count == 1) "" else "s"}", Toast.LENGTH_LONG).show()
+                }.onFailure {
+                    backupBusy = false
+                    Toast.makeText(context, it.message ?: "Restore failed", Toast.LENGTH_LONG).show()
                 }
             }.onFailure {
                 backupBusy = false

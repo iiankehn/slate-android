@@ -50,7 +50,23 @@ class DocumentRepository(
         dao.getRecoveryEntries(documentId).map(RecoveryEntryEntity::toModel)
 
     suspend fun restore(documents: List<Document>) {
-        val normalized = documents.map { it.copy(body = it.body.normalized()) }
+        val storedTimes = dao.getDocuments().associate { it.document.id to it.document.updatedAtEpochMillis }
+        val recoveryTimes = dao.getRecoveryEntries().groupBy { it.documentId }
+            .mapValues { (_, entries) -> entries.maxOf { it.createdAtEpochMillis } }
+        val now = System.currentTimeMillis()
+        val normalized = documents.map { document ->
+            // Restore is a new local edit; older recovery checkpoints must never undo it.
+            val previousTime = maxOf(
+                document.updatedAtEpochMillis,
+                storedTimes[document.id] ?: 0L,
+                recoveryTimes[document.id] ?: 0L,
+            )
+            require(previousTime < Long.MAX_VALUE) { "The document has an invalid timestamp." }
+            document.copy(
+                body = document.body.normalized(),
+                updatedAtEpochMillis = maxOf(now, previousTime + 1),
+            )
+        }
         dao.replaceDocuments(
             documents = normalized.map { it.toEntity() },
             rangesByDocument = normalized.map { it.toRangeEntities() },

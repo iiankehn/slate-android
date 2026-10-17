@@ -12,6 +12,7 @@ import com.iiankehn.slate.io.ImportedDocument
 import com.iiankehn.slate.io.R2DocumentBridge
 import java.util.UUID
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -166,33 +167,30 @@ class SlateViewModel(
         )
     }
 
-    fun restoreBackup(documents: List<Document>, policy: BackupConflictPolicy, onComplete: (Int) -> Unit) {
-        viewModelScope.launch {
-            pendingSaves.values.forEach { it.cancel() }
-            pendingSaves.clear()
-            saveGenerations.clear()
-            val currentById = mutableUiState.value.documents.associateBy(Document::id)
-            val restored = documents.mapNotNull { incoming ->
-                val current = currentById[incoming.id]
-                when {
-                    current == null -> incoming
-                    policy == BackupConflictPolicy.ReplaceExisting -> incoming
-                    policy == BackupConflictPolicy.KeepNewer && incoming.updatedAtEpochMillis > current.updatedAtEpochMillis -> incoming
-                    policy == BackupConflictPolicy.KeepNewer -> null
-                    else -> {
-                        val restoredId = UUID.randomUUID().toString()
-                        val restoredTitle = "${DocumentTitlePolicy.displayTitle(incoming.title, incoming.body.text)} (restored)"
-                        incoming.copy(
-                            id = restoredId,
-                            title = restoredTitle,
-                            wordProcessingDocument = incoming.wordProcessingDocument?.copy(id = restoredId, title = restoredTitle),
-                        )
-                    }
+    suspend fun restoreBackup(documents: List<Document>, policy: BackupConflictPolicy): Int {
+        // Finish queued edits before resolving conflicts or replacing any stored documents.
+        pendingSaves.values.toList().joinAll()
+        val currentById = mutableUiState.value.documents.associateBy(Document::id)
+        val restored = documents.mapNotNull { incoming ->
+            val current = currentById[incoming.id]
+            when {
+                current == null -> incoming
+                policy == BackupConflictPolicy.ReplaceExisting -> incoming
+                policy == BackupConflictPolicy.KeepNewer && incoming.updatedAtEpochMillis > current.updatedAtEpochMillis -> incoming
+                policy == BackupConflictPolicy.KeepNewer -> null
+                else -> {
+                    val restoredId = UUID.randomUUID().toString()
+                    val restoredTitle = "${DocumentTitlePolicy.displayTitle(incoming.title, incoming.body.text)} (restored)"
+                    incoming.copy(
+                        id = restoredId,
+                        title = restoredTitle,
+                        wordProcessingDocument = incoming.wordProcessingDocument?.copy(id = restoredId, title = restoredTitle),
+                    )
                 }
             }
-            repository.restore(restored)
-            onComplete(restored.size)
         }
+        repository.restore(restored)
+        return restored.size
     }
 
     fun permanentlyDelete(source: Document) {
