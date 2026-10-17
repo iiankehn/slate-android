@@ -1012,6 +1012,7 @@ private fun WordProcessorWorkspace(
     var activePage by remember(document.id) { mutableStateOf(0) }
     var showHeaderFooterEditor by remember(document.id) { mutableStateOf(false) }
     var showCustomPageSizeEditor by remember(document.id) { mutableStateOf(false) }
+    val continuousCanvas = usesContinuousCanvas(document)
     val editor = remember(document.id) { FlatTextEditorAdapter(document.wordProcessingDocument ?: R2DocumentBridge.fromLegacy(document)) }
     var editorValue by remember(document.id) { mutableStateOf(TextFieldValue(annotatedBody(editor.legacyBody(), editor.document))) }
     var selectedObjectId by remember(document.id) { mutableStateOf<String?>(null) }
@@ -1131,15 +1132,16 @@ private fun WordProcessorWorkspace(
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(Modifier.weight(1f).fillMaxWidth()) {
-                if (tablet && showNavigation) NavigationPane(
+                if (!continuousCanvas && tablet && showNavigation) NavigationPane(
                     document = document,
                     activePage = activePage,
                     onPageSelected = { activePage = it },
                     modifier = Modifier.width(230.dp).fillMaxHeight(),
                 )
                 Column(Modifier.weight(1f).fillMaxHeight().background(SlateEditorTheme.colors.canvas)) {
-                    if (!compactWindow) Ruler(zoom)
+                    if (!continuousCanvas && !compactWindow) Ruler(zoom)
                     DocumentCanvas(
+                        continuous = continuousCanvas,
                         value = editorValue, zoom = zoom, focusRequester = focusRequester,
                         compact = compactWindow,
                         document = editor.document,
@@ -1171,7 +1173,7 @@ private fun WordProcessorWorkspace(
                         onActivePageChange = { activePage = it },
                     )
                 }
-                if (desktop && showInspector) InspectorPane(
+                if (!continuousCanvas && desktop && showInspector) InspectorPane(
                     document = document,
                     r2 = editor.document,
                     activeSectionIndex = editor.activeSectionIndex,
@@ -1559,7 +1561,96 @@ private fun Ruler(zoom: Int) {
 }
 
 @Composable
+private fun ContinuousNoteCanvas(
+    value: TextFieldValue,
+    document: WordProcessingDocument,
+    zoom: Int,
+    compact: Boolean,
+    focusRequester: FocusRequester,
+    onValueChange: (TextFieldValue) -> Unit,
+    onToggle: (RichTextStyle) -> Unit,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
+    onTab: (Boolean) -> Unit,
+    onToggleChecklistItem: (String) -> Unit,
+) {
+    var textLayout by remember(document.id) { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val markers = remember(document) { paragraphListMarkers(document) }
+    val paragraphs = remember(document) { document.sections.flatMap { it.blocks }.filterIsInstance<ParagraphBlock>() }
+    Surface(Modifier.fillMaxSize(), color = SlateEditorTheme.colors.paper, contentColor = SlateEditorTheme.colors.onPaper) {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(
+                horizontal = if (compact) 16.dp else 40.dp,
+                vertical = if (compact) 18.dp else 32.dp,
+            ),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(Modifier.widthIn(max = 880.dp).fillMaxWidth()) {
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    onTextLayout = { textLayout = it },
+                    textStyle = TextStyle(
+                        color = SlateEditorTheme.colors.onPaper,
+                        fontSize = (17 * zoom / 100f).sp,
+                        lineHeight = (28 * zoom / 100f).sp,
+                        fontFamily = FontFamily.SansSerif,
+                    ),
+                    cursorBrush = SolidColor(CoreBlue),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 240.dp).padding(start = if (markers.isEmpty()) 0.dp else 32.dp)
+                        .focusRequester(focusRequester)
+                        .semantics { contentDescription = "Note content" }
+                        .onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                            if (event.key == Key.Tab) { onTab(event.isShiftPressed); return@onPreviewKeyEvent true }
+                            if (!event.isCtrlPressed) return@onPreviewKeyEvent false
+                            when (event.key) {
+                                Key.B -> { onToggle(RichTextStyle.Bold); true }
+                                Key.I -> { onToggle(RichTextStyle.Italic); true }
+                                Key.U -> { onToggle(RichTextStyle.Underline); true }
+                                Key.Z -> { onUndo(); true }
+                                Key.Y -> { onRedo(); true }
+                                else -> false
+                            }
+                        },
+                    decorationBox = { inner ->
+                        if (value.text.isEmpty()) Text("Start writing…", color = SlateEditorTheme.colors.onPaper.copy(alpha = 0.42f), fontSize = 17.sp)
+                        inner()
+                    },
+                )
+                textLayout?.takeIf { it.layoutInput.text == value.annotatedString }?.let { layout ->
+                    var offset = 0
+                    paragraphs.forEach { paragraph ->
+                        val marker = markers[paragraph.id]
+                        if (marker != null && offset <= value.text.length) {
+                            val line = layout.getLineForOffset(offset)
+                            val y = with(density) { layout.getLineTop(line).toDp() }
+                            val x = 32.dp + with(density) { layout.getHorizontalPosition(offset, true).toDp() } - 24.dp
+                            val checklist = paragraph.style.list?.kind == ListKind.Checklist
+                            Text(
+                                marker.text,
+                                modifier = Modifier.offset(x = x, y = y)
+                                    .then(if (checklist) Modifier.clickable { onToggleChecklistItem(paragraph.id) } else Modifier)
+                                    .semantics { contentDescription = if (checklist) {
+                                        if (paragraph.style.list?.checked == true) "Checked checklist item" else "Unchecked checklist item"
+                                    } else marker.text },
+                                color = SlateEditorTheme.colors.onPaper,
+                                fontSize = (17 * zoom / 100f).sp,
+                                lineHeight = (28 * zoom / 100f).sp,
+                            )
+                        }
+                        offset += paragraph.runs.sumOf { it.text.length } + 1
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun DocumentCanvas(
+    continuous: Boolean,
     value: TextFieldValue,
     document: WordProcessingDocument,
     zoom: Int,
@@ -1585,6 +1676,10 @@ private fun DocumentCanvas(
     activePage: Int,
     onActivePageChange: (Int) -> Unit,
 ) {
+    if (continuous) {
+        ContinuousNoteCanvas(value, document, zoom, compact, focusRequester, onValueChange, onToggle, onUndo, onRedo, onTab, onToggleChecklistItem)
+        return
+    }
     val layout = remember(document) { DocumentLayoutEngine().layout(document) }
     val slices = remember(document, layout, value.text.length) { pageTextSlices(document, layout, value.text.length) }
     val listState = rememberLazyListState()
@@ -2076,13 +2171,15 @@ internal fun pageTextSlices(
 @Composable
 private fun StatusBar(document: Document, saving: Boolean, zoom: Int, activePage: Int, compact: Boolean, onZoom: (Int) -> Unit) {
     val words = wordCount(document.body.text)
-    val pages = remember(document.wordProcessingDocument, document.body) {
+    val continuous = usesContinuousCanvas(document)
+    val pages = if (continuous) 0 else remember(document.wordProcessingDocument, document.body) {
         DocumentLayoutEngine().layout(document.wordProcessingDocument ?: R2DocumentBridge.fromLegacy(document)).pageCount
     }
+    val pageLabel = if (continuous) "" else "Page ${(activePage + 1).coerceAtMost(pages)} of $pages  •  "
     Surface(color = MaterialTheme.colorScheme.surface) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = if (compact) 3.dp else 5.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(if (saving) "Saving…" else "Saved locally", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("  •  Page ${(activePage + 1).coerceAtMost(pages)} of $pages  •  $words words${if (compact) "" else "  •  ${document.body.text.length} characters"}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("  •  ${pageLabel}$words words${if (compact) "" else "  •  ${document.body.text.length} characters"}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (!compact) {
                 TextButton(onClick = { onZoom((zoom - 25).coerceAtLeast(50)) }) { Text("−") }
                 Text("$zoom%", style = MaterialTheme.typography.labelMedium)

@@ -14,12 +14,13 @@ This roadmap describes the unified product after the Notes and Forge codebases w
 - Local autosave, checkpoints, startup recovery, archive, trash, favorites, folders, tags, and search
 - Manual verified updater
 - Password-encrypted whole-library backup and restore with integrity validation, preview, and conflict handling
+- Continuous canvas for text-only notes, including formatted text and lists
 - Start-center folder/tag editing and filters, saved text searches, and version-history preview/restore
 - CI architecture inspection for ARM64 and x86_64 native libraries
 
 ## Next priorities
 
-1. Add a continuous, low-chrome canvas for Note documents without creating a second UI architecture.
+1. Unify object/text editing offsets and extend the continuous Note canvas to image-bearing notes.
 2. Surface contextual Forge suggestions only when users approach page-layout actions.
 3. Add a guided import assistant for installations of the former standalone Forge package.
 4. Complete TalkBack labeling, focus order, large text, contrast, keyboard navigation, and touch-target audits.
