@@ -1,6 +1,6 @@
 # Slate roadmap
 
-This roadmap describes the unified product after the Notes and Forge codebases were consolidated in October 2024. It is ordered by product risk and user value, not by separate R1/R2 tracks.
+This roadmap describes the unified product after the Notes and Forge codebases were consolidated in October 2026. It is ordered by product risk and user value, not by separate R1/R2 tracks.
 
 ## Delivered foundation
 

@@ -33,10 +33,36 @@ jobs:
         with:
           gradle-version: "8.13"
       - name: Set release identifiers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
         run: |
-          echo "SLATE_VERSION_CODE=$((1000000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
-          echo "RELEASE_MONTH=$(date -u +%Y-%m)" >> "$GITHUB_ENV"
-          echo "SLATE_VERSION_NAME=$(date -u +%Y.%m)+${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          # Android requires an increasing hidden versionCode; users only see the calendar name.
+          # YYYYMM * 1000 + run number keeps every month above the last and stays above R1's 1000004.
+          test "$GITHUB_RUN_NUMBER" -lt 1000
+          now=$(date -u +%Y-%m)
+          release_month=$now
+          version_code=$(( ${now/-/} * 1000 + GITHUB_RUN_NUMBER ))
+
+          # Never build an APK that installed copies would reject as a downgrade.
+          latest_code=0
+          manifest_url=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" \
+            --jq '[.assets[] | select(.name == "slate-update.json" or .name == "slate-r1-update.json")][0].browser_download_url // empty' 2>/dev/null || true)
+          if [ -n "$manifest_url" ]; then
+            latest_code=$(curl -fsSL "$manifest_url" | jq -r '.versionCode')
+          fi
+          echo "Latest published versionCode: $latest_code; this build: $version_code"
+          test "$version_code" -gt "$latest_code"
+
+          # A published release is only replaced by an explicit publish run, never quietly re-drafted.
+          if [ "$(gh release view "slate-${release_month}" --json isDraft --jq '.isDraft' 2>/dev/null)" = "false" ] && [ "$PUBLISH" != "true" ]; then
+            echo "::error::slate-${release_month} is already published. Re-run with publish=true to replace it."
+            exit 1
+          fi
+
+          echo "SLATE_VERSION_CODE=$version_code" >> "$GITHUB_ENV"
+          echo "RELEASE_MONTH=$release_month" >> "$GITHUB_ENV"
+          echo "SLATE_VERSION_NAME=${now/-/.}+${GITHUB_SHA::7}" >> "$GITHUB_ENV"
       - name: Restore signing keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.SLATE_R1_KEYSTORE_BASE64 }}
@@ -89,6 +115,8 @@ jobs:
           printf '{"versionCode":%s,"versionName":"%s","apkUrl":"https://github.com/iiankehn/slate-android/releases/download/slate-%s/Slate-%s.apk","sha256":"%s","sizeBytes":%s}\n' \
             "$SLATE_VERSION_CODE" "$SLATE_VERSION_NAME" "$RELEASE_MONTH" "$RELEASE_MONTH" "$apk_sha" "$apk_size" \
             > slate-update.json
+          # Installed R1 builds look for this name; the contents are compatible.
+          cp slate-update.json slate-r1-update.json
           notes_file="docs/releases/${RELEASE_MONTH}.md"
           if [ ! -f "../$notes_file" ]; then notes_file="RELEASE_NOTES.md"; fi
           echo "RELEASE_NOTES_FILE=$notes_file" >> "$GITHUB_ENV"

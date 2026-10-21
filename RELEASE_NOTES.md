@@ -1,8 +1,16 @@
-# Unified Slate — October 2026 development release
+# Slate release notes
 
-Slate Notes and Slate Forge now share one application, library, editor, document model, and release line. This development release keeps the existing Slate Notes package and signing identity so installed Notes libraries can upgrade in place, while bringing the Forge-derived workspace and advanced word-processing model into that same app.
+Each monthly release has its own notes in [`docs/releases/`](docs/releases/). This file summarizes the unified release line and keeps the R1 history.
 
-## What changed
+## Slate — October 2026
+
+**Published:** October 7, 2026 · **Tag:** `slate-2026-10` · **Source commit:** `3f2c06d`
+
+> **Upgrading from Slate R1:** the October build carries a lower internal version code than R1, so Android refuses to install it over R1 and R1's **Check for updates** does not find it. Do not uninstall R1 to work around this; uninstalling deletes your documents. Wait for the November 2026 release, which installs over both R1 and October.
+
+Slate Notes and Slate Forge now share one application, library, editor, document model, and release line. This release keeps the existing Slate Notes package and signing identity so installed Notes libraries can upgrade in place, while bringing the Forge-derived workspace and advanced word-processing model into that same app.
+
+### What changed
 
 - Replaced the separate-product architecture with one adaptive Slate app.
 - Made the Forge-derived ribbon workspace the interface for both quick notes and complete documents.
@@ -22,20 +30,18 @@ Slate Notes and Slate Forge now share one application, library, editor, document
 - Refined the start center around a branded cat-fox hero, one primary New document action, quieter template cards, Material filter chips, and conditional search controls that stay out of the way until a library exists.
 - Rewrote product, format, privacy, architecture, release, contribution, security, and user documentation for one product.
 
-## Migration
+### Migration
 
-- Existing Slate Notes users install the signed unified APK over their current installation; documents remain in the upgraded local database.
+- Existing Slate Notes users install the signed unified APK over their current installation; documents remain in the upgraded local database. R1 installations need the November 2026 or later release (see above).
 - Users of the former standalone Slate Forge package should export `.slxf` or `.slx` files and import them into unified Slate. The two packages cannot directly share private Android data.
 
-## Known follow-up work
+### Known follow-up work at release
 
-The Forge start center still needs complete folder, tag, saved-search, and version-history controls. Encrypted whole-library backup, a guided standalone-Forge migration assistant, broader accessibility auditing, and large-document performance work remain on the roadmap.
-
-This section documents work on the unified release branch; it does not claim that a signed public APK has already been published.
+Start-center folder, tag, saved-search, and version-history controls and encrypted whole-library backup were delivered after this release and are described in the [November 2026 notes](docs/releases/2026-11.md). A guided standalone-Forge migration assistant, broader accessibility auditing, and large-document performance work remain on the [roadmap](docs/ROADMAP.md).
 
 ---
 
-# Historical release: Slate R1 — September 2026
+## Historical release: Slate R1 — September 2026
 
 Slate R1 is the first official release of Slate by CORE: a private, local-first Android writing app designed to feel immediate for notes while remaining structured enough for longer documents.
 
@@ -50,9 +56,9 @@ Slate R1 is the first official release of Slate by CORE: a private, local-first 
 
 [View the official release and download the signed APK](https://github.com/iiankehn/slate-android/releases/tag/r1-2026-09)
 
-## What is included
+### What is included
 
-### A complete local document library
+#### A complete local document library
 
 - Create and edit notes or longer documents without an account.
 - Rename, duplicate, pin, favorite, archive, move to Trash, restore, or permanently delete.
@@ -61,7 +67,7 @@ Slate R1 is the first official release of Slate by CORE: a private, local-first 
 - Switch between Documents, Favorites, Archive, and Trash.
 - Keep pinned and favorite work prominent through deterministic library sorting.
 
-### Rich writing tools
+#### Rich writing tools
 
 - Bold, italic, underline, H1, quote, and link styles apply to the selection or the current word/line where appropriate.
 - Add bullet prefixes and checkboxes to lines.
@@ -71,7 +77,7 @@ Slate R1 is the first official release of Slate by CORE: a private, local-first 
 - Undo and redo within the active editor session.
 - Rename directly from the editor menu or edit the title inline.
 
-### Keyboard and navigation behavior
+#### Keyboard and navigation behavior
 
 - `Ctrl+B`, `Ctrl+I`, and `Ctrl+U` toggle common text styles.
 - `Ctrl+F` opens Find.
@@ -80,7 +86,7 @@ Slate R1 is the first official release of Slate by CORE: a private, local-first 
 - On phones and compact windows, Android Back returns from the editor to the library before exiting Slate.
 - Larger windows use an adaptive two-pane library/editor layout.
 
-### Durable autosave and recovery
+#### Durable autosave and recovery
 
 - Edits create immediate recovery checkpoints in an app-private Room database.
 - The current snapshot saves after a short 450 ms idle delay.
@@ -88,7 +94,7 @@ Slate R1 is the first official release of Slate by CORE: a private, local-first 
 - Slate restores a newer recovery checkpoint after an interrupted write or process stop.
 - Version history retains up to 30 checkpoints per document and lets the user restore an earlier title, body, folder, and tag state.
 
-### Import, export, and Android integration
+#### Import, export, and Android integration
 
 - Import UTF-8 plain text, Markdown, and DOCX through the Android Storage Access Framework.
 - Open supported text, Markdown, and DOCX files from other Android apps where the system offers Slate.
@@ -97,7 +103,7 @@ Slate R1 is the first official release of Slate by CORE: a private, local-first 
 - Print through Android's system print service.
 - Select images with scoped URI access; no broad storage permission is requested.
 
-### Material 3 interface polish
+#### Material 3 interface polish
 
 - Replaced the earlier translucent/glass direction with a flat Material 3 Expressive-inspired design.
 - Retained Slate's Midnight surfaces and CORE blue `#0072BC` identity.
@@ -105,7 +111,7 @@ Slate R1 is the first official release of Slate by CORE: a private, local-first 
 - Polished phone and large-window layouts, system bars, spacing, editor hierarchy, and document rows.
 - Capped image previews so attachments do not displace the editor and formatting controls.
 
-### Private by construction
+#### Private by construction
 
 - Documents stay in app-private storage unless the user explicitly imports, exports, prints, or shares.
 - No account, advertising, analytics, telemetry, diagnostics upload, location, contacts, microphone, or camera access.
@@ -113,7 +119,7 @@ Slate R1 is the first official release of Slate by CORE: a private, local-first 
 - Android automatic cloud backup and device transfer are disabled.
 - Cleartext network traffic is disabled.
 
-### Verified native updates
+#### Verified native updates
 
 - **Check for updates** is available from the editor menu.
 - Slate contacts GitHub only when the user requests a check; there is no background polling.
@@ -122,7 +128,7 @@ Slate R1 is the first official release of Slate by CORE: a private, local-first 
 - Android independently enforces the package name, signing certificate, and final installation confirmation.
 - Updates install over the existing app and preserve app data when the installed copy has the same official signing certificate.
 
-## Engineering and release work
+### Engineering and release work
 
 - Native Kotlin/Compose application with Android SDK 36 targeting and Android 12 minimum support.
 - Room-backed persistence, normalized rich-text ranges, recovery payload encoding, and deterministic library state.
@@ -131,7 +137,7 @@ Slate R1 is the first official release of Slate by CORE: a private, local-first 
 - Optimized release builds with code/resource shrinking and protected signing secrets.
 - Monthly R1 workflow that builds, signs, checks, and publishes an APK, `.sha256` file, and `slate-r1-update.json` manifest.
 
-## Format fidelity and current limitations
+### Format fidelity and current limitations
 
 Slate R1 favors dependable local writing over desktop publishing complexity.
 
@@ -145,7 +151,7 @@ Slate R1 favors dependable local writing over desktop publishing complexity.
 - There is no cloud sync, collaboration, comments, tracked changes, or mandatory account.
 - Uninstalling Slate removes app-private documents because automatic Android backup is disabled. Export important work before uninstalling.
 
-## Installation and upgrading
+### Installation and upgrading
 
 1. Download `Slate-R1-2026-09.apk` from the official GitHub release.
 2. If Android asks, allow the browser or file manager to install apps from that source.
@@ -159,11 +165,11 @@ Official APK SHA-256:
 555a427bbc48acbac97527948750e611b443162c4f95a9a47ede3d51465f94e6
 ```
 
-## R1 is not R2
+### R1 is not R2
 
 R1 and R2 are distinct Slate products, not increments in a shared version sequence. R1 is the focused local-first notes/document product delivered here. R2 is the separate full word-processing product planned for broader form factors, Googlebook Android support, and ARM64/x86_64 targets.
 
-## Report feedback
+### Report feedback
 
 - [Report a bug](https://github.com/iiankehn/slate-android/issues/new?template=bug_report.yml)
 - [Request an R1 feature](https://github.com/iiankehn/slate-android/issues/new?template=feature_request.yml)

@@ -6,9 +6,12 @@ Slate uses one monthly GitHub-managed release line. A calendar version identifie
 
 - Package: `com.iiankehn.slate`
 - Version name: `YYYY.MM+COMMIT`
+- Version code: `YYYYMM × 1000 + workflow run number` (for example `202611003`)
 - Tag: `slate-YYYY-MM`
 - APK: `Slate-YYYY-MM.apk`
-- Update manifest: `slate-update.json`
+- Update manifest: `slate-update.json`, plus an identical `slate-r1-update.json` for installed R1 builds
+
+Slate has no public version number; the calendar name is what users see. Android still requires a hidden, strictly increasing version code to accept an in-place update. The calendar-derived code always rises month to month, rises within a month with each run, and stays above every earlier scheme (R1 published `1000004`; the October 2026 unified build used `1000002`). The workflow refuses to build a code that is not greater than the latest published release's.
 
 Keeping the existing package and signing identity allows Slate Notes users to install the unified app as an update. Do not change either without an explicit migration plan.
 
@@ -47,6 +50,12 @@ Signing files and passwords must never enter source control, logs, issue attachm
 - Back navigation, software keyboard insets, compact layout, and expanded layout are manually smoke-tested on available hardware.
 - The generated manifest URL, version code, byte size, and SHA-256 match the APK.
 - Release notes describe user-visible behavior and known limitations.
+
+## Re-running in the same month
+
+A run for a month whose release already exists moves that month's tag to the new commit and replaces its assets. If the release is already published, the workflow stops unless it was started manually with `publish=true`, so a scheduled or draft run can never pull a published release back to draft.
+
+Each month's notes come from `docs/releases/YYYY-MM.md`; add that file before the month's run. `RELEASE_NOTES.md` is only a fallback.
 
 ## Rollback
 

@@ -46,6 +46,8 @@ object LibraryBackupCodec {
     private const val NONCE_BYTES = 12
     private const val DIGEST_BYTES = 32
     private const val MAX_BACKUP_BYTES = 512 * 1024 * 1024
+    /** Largest encrypted file [decrypt] can accept: the ciphertext limit plus header room. */
+    const val MAX_FILE_BYTES = MAX_BACKUP_BYTES + 1_024
     private const val MAX_DOCUMENTS = 50_000
     private const val MAX_STRING_BYTES = 16 * 1024 * 1024
     private const val MAX_DOCUMENT_BYTES = 64 * 1024 * 1024
@@ -78,7 +80,7 @@ object LibraryBackupCodec {
 
     fun decrypt(bytes: ByteArray, passphrase: CharArray): LibraryBackup {
         require(passphrase.isNotEmpty()) { "Enter the backup passphrase." }
-        require(bytes.size <= MAX_BACKUP_BYTES + 1_024) { "The backup exceeds the 512 MB limit." }
+        require(bytes.size <= MAX_FILE_BYTES) { "The backup exceeds the 512 MB limit." }
         return DataInputStream(ByteArrayInputStream(bytes)).use { data ->
             require(data.readInt() == MAGIC) { "This is not a Slate library backup." }
             val version = data.readInt()
