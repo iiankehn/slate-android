@@ -56,7 +56,7 @@ jobs:
           # Never build an APK that installed copies would reject as a downgrade.
           latest_code=0
           manifest_url=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" \
-            --jq '[.assets[] | select(.name == "slate-update.json" or .name == "slate-r1-update.json")][0].browser_download_url // empty' 2>/dev/null || true)
+            --jq '[.assets[] | select(.name == "slate-update.json")][0].browser_download_url // empty' 2>/dev/null || true)
           if [ -n "$manifest_url" ]; then
             latest_code=$(curl -fsSL "$manifest_url" | jq -r '.versionCode')
           fi
@@ -124,8 +124,6 @@ jobs:
           printf '{"versionCode":%s,"versionName":"%s","apkUrl":"https://github.com/iiankehn/slate-android/releases/download/slate-%s/Slate-%s.apk","sha256":"%s","sizeBytes":%s}\n' \
             "$SLATE_VERSION_CODE" "$SLATE_VERSION_NAME" "$RELEASE_MONTH" "$RELEASE_MONTH" "$apk_sha" "$apk_size" \
             > slate-update.json
-          # Installed R1 builds look for this name; the contents are compatible.
-          cp slate-update.json slate-r1-update.json
           notes_file="docs/releases/${RELEASE_MONTH}.md"
           if [ ! -f "../$notes_file" ]; then notes_file="RELEASE_NOTES.md"; fi
           echo "RELEASE_NOTES_FILE=$notes_file" >> "$GITHUB_ENV"

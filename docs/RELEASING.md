@@ -9,7 +9,7 @@ Slate uses one monthly GitHub-managed release line. A calendar version identifie
 - Version code: `YYYYMM × 1000 + REVISION` (for example `202611001`)
 - Tag: `slate-YYYY-MM`
 - APK: `Slate-YYYY-MM.apk`
-- Update manifest: `slate-update.json`, plus an identical `slate-r1-update.json` for installed R1 builds
+- Update manifest: `slate-update.json`
 
 Versions follow the calendar. The revision is `1` for a month's first build and increases by one each time that month's release is rebuilt; it restarts at `1` the next month. Android requires a hidden, strictly increasing version code to accept an in-place update, so the same year, month, and revision are packed into one integer. It always rises month to month and within a month, and stays above every earlier scheme (R1 published `1000004`; the October 2026 unified build used `1000002`). The workflow refuses to build a code that is not greater than the latest published release's.
 

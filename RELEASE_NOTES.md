@@ -6,8 +6,6 @@ Each monthly release has its own notes in [`docs/releases/`](docs/releases/). Th
 
 **Published:** October 7, 2026 · **Tag:** `slate-2026-10` · **Source commit:** `3f2c06d`
 
-> **Upgrading from Slate R1:** the October build carries a lower internal version code than R1, so Android refuses to install it over R1 and R1's **Check for updates** does not find it. Do not uninstall R1 to work around this; uninstalling deletes your documents. Wait for the November 2026 release, which installs over both R1 and October.
-
 Slate Notes and Slate Forge now share one application, library, editor, document model, and release line. This release keeps the existing Slate Notes package and signing identity so installed Notes libraries can upgrade in place, while bringing the Forge-derived workspace and advanced word-processing model into that same app.
 
 ### What changed
@@ -32,7 +30,7 @@ Slate Notes and Slate Forge now share one application, library, editor, document
 
 ### Migration
 
-- Existing Slate Notes users install the signed unified APK over their current installation; documents remain in the upgraded local database. R1 installations need the November 2026 or later release (see above).
+- Existing Slate Notes users install the signed unified APK over their current installation; documents remain in the upgraded local database.
 - Users of the former standalone Slate Forge package should export `.slxf` or `.slx` files and import them into unified Slate. The two packages cannot directly share private Android data.
 
 ### Known follow-up work at release
