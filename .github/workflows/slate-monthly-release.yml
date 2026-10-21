@@ -37,12 +37,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
         run: |
-          # Android requires an increasing hidden versionCode; users only see the calendar name.
-          # YYYYMM * 1000 + run number keeps every month above the last and stays above R1's 1000004.
-          test "$GITHUB_RUN_NUMBER" -lt 1000
+          # Users see YYYY.MM.REVISION; Android's hidden versionCode packs the same value as
+          # YYYYMM * 1000 + REVISION, which rises every month and stays above R1's 1000004.
           now=$(date -u +%Y-%m)
           release_month=$now
-          version_code=$(( ${now/-/} * 1000 + GITHUB_RUN_NUMBER ))
+          month_code=${now/-/}
+
+          # The revision restarts at 1 each month and rises with each rebuild of that month's release.
+          revision=1
+          month_existing=$(gh release download "slate-${release_month}" -R "$GITHUB_REPOSITORY" -p slate-update.json -O - 2>/dev/null \
+            | jq -r '.versionCode // empty' || true)
+          if [ -n "$month_existing" ] && [ $(( month_existing / 1000 )) -eq "$month_code" ]; then
+            revision=$(( month_existing % 1000 + 1 ))
+          fi
+          test "$revision" -lt 1000
+          version_code=$(( month_code * 1000 + revision ))
 
           # Never build an APK that installed copies would reject as a downgrade.
           latest_code=0
@@ -62,7 +71,7 @@ jobs:
 
           echo "SLATE_VERSION_CODE=$version_code" >> "$GITHUB_ENV"
           echo "RELEASE_MONTH=$release_month" >> "$GITHUB_ENV"
-          echo "SLATE_VERSION_NAME=${now/-/.}+${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "SLATE_VERSION_NAME=${now/-/.}.${revision}+${GITHUB_SHA::7}" >> "$GITHUB_ENV"
       - name: Restore signing keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.SLATE_R1_KEYSTORE_BASE64 }}
