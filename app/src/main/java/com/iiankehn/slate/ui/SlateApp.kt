@@ -4,7 +4,6 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -118,6 +117,7 @@ import com.iiankehn.slate.io.DocumentFormats
 import com.iiankehn.slate.io.DocxEmbeddedImage
 import com.iiankehn.slate.io.R2DocumentBridge
 import com.iiankehn.slate.io.LibraryBackup
+import com.iiankehn.slate.io.DocumentImport
 import com.iiankehn.slate.io.LibraryBackupCodec
 import com.iiankehn.slate.io.LibraryBackupDocument
 import com.iiankehn.slate.io.SlxAsset
@@ -224,23 +224,7 @@ fun SlateApp(viewModel: SlateViewModel) {
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
             runCatching {
-                withContext(Dispatchers.IO) {
-                    val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-                        if (cursor.moveToFirst()) cursor.getString(0) else "Imported document"
-                    } ?: "Imported document"
-                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                        ?: error("Unable to read the selected document.")
-                    val title = name.substringBeforeLast('.').ifBlank { "Imported document" }
-                    val imported = when (name.substringAfterLast('.', "").lowercase()) {
-                        "slx" -> DocumentFormats.importSlx(bytes)
-                        "slxf" -> DocumentFormats.importSlxf(bytes)
-                        "md", "markdown" -> DocumentFormats.importMarkdown(bytes, title)
-                        "docx" -> DocumentFormats.importDocx(bytes, title)
-                        "txt" -> DocumentFormats.importText(bytes, title)
-                        else -> error("Slate can import .slx, .slxf, .txt, .md, .markdown, and .docx files.")
-                    }
-                    materializeImportedImages(context, imported)
-                }
+                withContext(Dispatchers.IO) { DocumentImport.fromUri(context, uri) }
             }.onSuccess { imported ->
                 selectedId = viewModel.importDocument(imported).id
                 if (imported.warnings.isNotEmpty()) Toast.makeText(context, imported.warnings.joinToString(" "), Toast.LENGTH_LONG).show()
@@ -320,7 +304,7 @@ fun SlateApp(viewModel: SlateViewModel) {
             runCatching {
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openInputStream(uri)?.use { input ->
-                        input.readBytes().also { require(it.size <= 512 * 1024 * 1024) { "The backup exceeds the 512 MB limit." } }
+                        DocumentImport.readBounded(input, LibraryBackupCodec.MAX_FILE_BYTES, "The backup exceeds the 512 MB limit.")
                     } ?: error("Unable to read the backup file.")
                 }
             }.onSuccess { bytes ->
@@ -399,7 +383,7 @@ fun SlateApp(viewModel: SlateViewModel) {
             runCatching {
                 withContext(Dispatchers.IO) {
                     backup.documents.map { entry ->
-                        val imported = materializeImportedImages(context, DocumentFormats.importSlxf(entry.slxfPackage))
+                        val imported = DocumentImport.materializeAssets(context, DocumentFormats.importSlxf(entry.slxfPackage))
                         Document(
                             id = entry.id,
                             title = entry.title,
@@ -604,35 +588,6 @@ fun SlateApp(viewModel: SlateViewModel) {
             dismissButton = { TextButton(onClick = { backupPreview = null; pendingRestoreBytes = null }, enabled = !backupBusy) { Text("Cancel") } },
         )
     }
-}
-
-private fun materializeImportedImages(context: android.content.Context, imported: com.iiankehn.slate.io.ImportedDocument): com.iiankehn.slate.io.ImportedDocument {
-    if (imported.embeddedImages.isEmpty() && imported.slxAssets.isEmpty()) return imported
-    val directory = File(context.filesDir, "imported-slate-media").apply { mkdirs() }
-    val forgeUris = imported.embeddedImages.associate { image ->
-        val extension = image.extension.takeIf { it.matches(Regex("[a-zA-Z0-9]{1,8}")) } ?: "bin"
-        val file = File(directory, "${image.blockId}-${image.bytes.contentHashCode()}.$extension")
-        file.outputStream().use { it.write(image.bytes) }
-        image.blockId to Uri.fromFile(file).toString()
-    }
-    val sharedUris = imported.slxAssets.associate { asset ->
-        val extension = asset.extension.takeIf { it.matches(Regex("[a-zA-Z0-9]{1,8}")) } ?: "bin"
-        val file = File(directory, "${asset.id}-${asset.bytes.contentHashCode()}.$extension")
-        file.outputStream().use { it.write(asset.bytes) }
-        asset.id to Uri.fromFile(file).toString()
-    }
-    val body = imported.body.copy(ranges = imported.body.ranges.map { range ->
-        val assetId = range.data?.removePrefix("asset:")?.takeIf { range.data.startsWith("asset:") }
-        if (assetId != null && assetId in sharedUris) range.copy(data = sharedUris.getValue(assetId)) else range
-    }).normalized()
-    val document = imported.wordProcessingDocument?.let { r2 ->
-        r2.copy(sections = r2.sections.map { section ->
-            section.copy(blocks = section.blocks.map { block ->
-                if (block is ImageBlock && block.id in forgeUris) block.copy(sourceUri = forgeUris.getValue(block.id)) else block
-            })
-        })
-    }
-    return imported.copy(body = body, wordProcessingDocument = document, embeddedImages = emptyList(), slxAssets = emptyList())
 }
 
 private fun collectForgeAssets(context: android.content.Context, document: Document): Map<String, SlxAsset> {

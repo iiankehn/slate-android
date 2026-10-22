@@ -55,5 +55,5 @@ Ordinary text, rich formatting, links, and simple content remain Note-compatible
 
 - DOCX is an interchange format, not a claim of Microsoft Word layout parity.
 - Exporting a Forge document to `.slx` may simplify page-only features; the source remains unchanged.
-- The start center does not yet expose every folder, tag, saved-search, and history control supported by the data layer.
+- Saved searches are stored on this device only and are not included in encrypted library backups.
 - Guided migration from the former standalone Forge app remains a roadmap item.

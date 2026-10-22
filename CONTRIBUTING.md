@@ -14,8 +14,10 @@ Slate is one adaptive Android writing app. Contributions should strengthen the s
 ## Build and test
 
 ```bash
-./gradlew test lint assembleDebug
+gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
 ```
+
+The repository has no Gradle wrapper; use Gradle 8.13 with JDK 17 and the Android SDK, matching CI.
 
 GitHub Actions is canonical and also checks native-library architecture coverage. Add focused tests for editing commands, migration rules, codecs, classification, and layout behavior when changing those areas.
 

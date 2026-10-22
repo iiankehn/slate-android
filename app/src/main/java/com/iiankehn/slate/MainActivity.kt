@@ -1,10 +1,9 @@
 package com.iiankehn.slate
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.provider.OpenableColumns
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -12,15 +11,12 @@ import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.iiankehn.slate.data.DocumentRepository
 import com.iiankehn.slate.data.SlateDatabase
-import com.iiankehn.slate.io.DocumentFormats
-import com.iiankehn.slate.io.ImportedDocument
-import com.iiankehn.slate.model.ImageBlock
+import com.iiankehn.slate.io.DocumentImport
 import com.iiankehn.slate.ui.SlateApp
 import com.iiankehn.slate.ui.theme.SlateTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 
 class MainActivity : ComponentActivity() {
     private val slateViewModel: SlateViewModel by viewModels {
@@ -38,7 +34,8 @@ class MainActivity : ComponentActivity() {
                 SlateApp(slateViewModel)
             }
         }
-        handleDocumentIntent(intent)
+        // A recreated activity still holds the original intent; importing it again would duplicate the document.
+        if (savedInstanceState == null) handleDocumentIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -51,49 +48,14 @@ class MainActivity : ComponentActivity() {
         val uri = intent?.data ?: return
         if (intent.action != Intent.ACTION_VIEW && intent.action != Intent.ACTION_EDIT) return
         lifecycleScope.launch {
-            val imported = runCatching {
-                withContext(Dispatchers.IO) {
-                    val name = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-                        if (cursor.moveToFirst()) cursor.getString(0) else "Imported document"
-                    } ?: "Imported document"
-                    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("Unable to read document")
-                    val title = name.substringBeforeLast('.').ifBlank { "Imported document" }
-                    val imported = when (name.substringAfterLast('.', "").lowercase()) {
-                        "slx" -> DocumentFormats.importSlx(bytes)
-                        "slxf" -> DocumentFormats.importSlxf(bytes)
-                        "md", "markdown" -> DocumentFormats.importMarkdown(bytes, title)
-                        "docx" -> DocumentFormats.importDocx(bytes, title)
-                        else -> DocumentFormats.importText(bytes, title)
-                    }
-                    materializeSlateAssets(imported)
-                }
-            }.getOrNull()
-            if (imported != null) slateViewModel.importDocument(imported)
+            runCatching {
+                withContext(Dispatchers.IO) { DocumentImport.fromUri(applicationContext, uri) }
+            }.onSuccess { imported ->
+                slateViewModel.importDocument(imported)
+                if (imported.warnings.isNotEmpty()) Toast.makeText(this@MainActivity, imported.warnings.joinToString(" "), Toast.LENGTH_LONG).show()
+            }.onFailure {
+                Toast.makeText(this@MainActivity, it.message ?: "Unable to open this document.", Toast.LENGTH_LONG).show()
+            }
         }
-    }
-
-    private fun materializeSlateAssets(imported: ImportedDocument): ImportedDocument {
-        if (imported.embeddedImages.isEmpty() && imported.slxAssets.isEmpty()) return imported
-        val directory = File(filesDir, "imported-slate-media").apply { mkdirs() }
-        fun write(id: String, extension: String, bytes: ByteArray): String {
-            val safeExtension = extension.takeIf { it.matches(Regex("[A-Za-z0-9]{1,8}")) } ?: "bin"
-            val file = File(directory, "$id-${bytes.contentHashCode()}.$safeExtension")
-            file.outputStream().use { it.write(bytes) }
-            return Uri.fromFile(file).toString()
-        }
-        val forgeUris = imported.embeddedImages.associate { it.blockId to write(it.blockId, it.extension, it.bytes) }
-        val sharedUris = imported.slxAssets.associate { it.id to write(it.id, it.extension, it.bytes) }
-        val body = imported.body.copy(ranges = imported.body.ranges.map { range ->
-            val id = range.data?.takeIf { it.startsWith("asset:") }?.removePrefix("asset:")
-            if (id != null && id in sharedUris) range.copy(data = sharedUris.getValue(id)) else range
-        }).normalized()
-        val forge = imported.wordProcessingDocument?.let { document ->
-            document.copy(sections = document.sections.map { section ->
-                section.copy(blocks = section.blocks.map { block ->
-                    if (block is ImageBlock && block.id in forgeUris) block.copy(sourceUri = forgeUris.getValue(block.id)) else block
-                })
-            })
-        }
-        return imported.copy(body = body, wordProcessingDocument = forge, embeddedImages = emptyList(), slxAssets = emptyList())
     }
 }

@@ -56,8 +56,10 @@ The former standalone Slate Forge application used a different Android package. 
 GitHub Actions is the canonical build environment. For local development:
 
 ```bash
-./gradlew test lint assembleDebug
+gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
 ```
+
+The repository has no Gradle wrapper; use Gradle 8.13 with JDK 17 and the Android SDK, matching CI.
 
 Release signing material belongs only in GitHub Actions secrets. See [Release process](docs/RELEASING.md) for the monthly build flow.
 
