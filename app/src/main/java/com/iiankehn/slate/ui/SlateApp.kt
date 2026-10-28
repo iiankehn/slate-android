@@ -1003,6 +1003,7 @@ private fun WordProcessorWorkspace(
         context.getSharedPreferences("slate-interface", android.content.Context.MODE_PRIVATE)
     }
     var activeTab by remember { mutableStateOf(RibbonTab.Home) }
+    var forgeHintDismissed by remember(document.id) { mutableStateOf(false) }
     var phoneRibbonExpanded by remember {
         mutableStateOf(ribbonPreferences.getBoolean("phone-ribbon-expanded-v2", false))
     }
@@ -1104,6 +1105,22 @@ private fun WordProcessorWorkspace(
                     dense = shortWindow,
                     onCollapse = if (compactWindow) ({ setPhoneRibbonExpanded(false) }) else null,
                 )
+                if (continuousCanvas && !forgeHintDismissed && (activeTab == RibbonTab.Layout || activeTab == RibbonTab.Insert)) {
+                    Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+                        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                if (activeTab == RibbonTab.Layout)
+                                    "Changing page size, margins, orientation or columns switches this note to Forge’s paged view."
+                                else
+                                    "Tables, page breaks, sections and headers use Forge’s paged view. Images stay in Note.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f).padding(vertical = 8.dp),
+                            )
+                            TextButton(onClick = { forgeHintDismissed = true }) { Text("Dismiss") }
+                        }
+                    }
+                }
                 Ribbon(
                     tab = activeTab, compact = !tablet, dense = shortWindow, document = document, selection = editorValue.selection,
                     onToggle = ::toggle, onInsert = ::insert, onNew = onNew, onOpen = onImport,
