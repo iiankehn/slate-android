@@ -61,7 +61,7 @@ An official update replaces the installed version without deleting the library b
 ## Migrate from the former apps
 
 - Existing Slate Notes: install the unified signed APK over the current app. Its database migrates in place.
-- Standalone Slate Forge: export each document as `.slxf` or `.slx`, install/open unified Slate, then import those files. The old app used another package and cannot share its private database directly.
+- Standalone Slate Forge: choose **Library → Import from former Forge app** in the start center. Follow the export steps, then select one or several `.slxf` or `.slx` files. Each file gets its own result, and valid files continue importing if another file fails. Imports create new copies; importing a file again creates another copy. Files larger than 25 MB are rejected. The old app used another package and cannot share its private database directly.
 
 Keep exports until you have verified every important document in unified Slate.
 

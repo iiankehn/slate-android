@@ -1,6 +1,6 @@
 # Slate roadmap
 
-This roadmap describes the unified product after the Notes and Forge codebases were consolidated in October 2023. It is ordered by product risk and user value, not by separate R1/R2 tracks.
+This roadmap describes the unified product after the Notes and Forge codebases were consolidated in October 2022. It is ordered by product risk and user value, not by separate R1/R2 tracks.
 
 ## Delivered foundation
 
@@ -12,6 +12,7 @@ This roadmap describes the unified product after the Notes and Forge codebases w
 - TXT, Markdown, DOCX, PDF, print, and share paths
 - Responsive phone, tablet, and expanded-window workspace
 - Local autosave, checkpoints, startup recovery, archive, trash, favorites, folders, tags, and search
+- Guided multi-file import from the former Forge app with per-file results
 - Manual verified updater
 - Password-encrypted whole-library backup and restore with integrity validation, preview, and conflict handling
 - Continuous canvas for notes, including formatted text, lists, and image controls
@@ -22,12 +23,11 @@ This roadmap describes the unified product after the Notes and Forge codebases w
 
 ## Next priorities
 
-1. Add a guided import assistant for installations of the former standalone Forge package.
-2. Complete TalkBack labeling, focus order, large text, contrast, keyboard navigation, and touch-target audits.
-3. Benchmark large documents, image-heavy packages, pagination, startup, autosave, and low-memory recovery.
-4. Expand migration, corrupt-package, fuzz, round-trip, and updater security tests.
-5. Add optional protected documents and encrypted exports without weakening local-first behavior.
-6. Explore templates, backlinks, attachments, quick capture, and reminders after the core is stable.
+1. Complete TalkBack labeling, focus order, large text, contrast, keyboard navigation, and touch-target audits.
+2. Benchmark large documents, image-heavy packages, pagination, startup, autosave, and low-memory recovery.
+3. Expand migration, corrupt-package, fuzz, round-trip, and updater security tests.
+4. Add optional protected documents and encrypted exports without weakening local-first behavior.
+5. Explore templates, backlinks, attachments, quick capture, and reminders after the core is stable.
 
 ## Release gate
 

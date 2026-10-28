@@ -70,7 +70,7 @@ class SlateViewModel(
         return document
     }
 
-    fun importDocument(imported: ImportedDocument): Document {
+    private fun prepareImport(imported: ImportedDocument): Document {
         val id = UUID.randomUUID().toString()
         val importedR2 = imported.wordProcessingDocument?.copy(id = id, title = imported.title)
         val document = Document(
@@ -81,8 +81,20 @@ class SlateViewModel(
             wordProcessingDocument = importedR2,
             experience = imported.suggestedExperience,
         ).withSynchronizedR2()
+        return document
+    }
+
+    fun importDocument(imported: ImportedDocument): Document {
+        val document = prepareImport(imported)
         updateLocal(document)
         scheduleSave(document, delayMillis = 0)
+        return document
+    }
+
+    suspend fun importDocumentAndSave(imported: ImportedDocument): Document {
+        val document = prepareImport(imported)
+        repository.save(document)
+        updateLocal(document)
         return document
     }
 

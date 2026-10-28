@@ -182,6 +182,10 @@ fun SlateApp(viewModel: SlateViewModel) {
     val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
     var selectedId by remember { mutableStateOf<String?>(null) }
+    var showForgeImport by remember { mutableStateOf(false) }
+    var forgeImportBusy by remember { mutableStateOf(false) }
+    var forgeImportProgress by remember { mutableStateOf("") }
+    var forgeImportResults by remember { mutableStateOf<List<String>>(emptyList()) }
     var pendingExport by remember { mutableStateOf<ExportRequest?>(null) }
     var pendingImageUri by remember { mutableStateOf<String?>(null) }
     var pendingUpdate by remember { mutableStateOf<SlateUpdate?>(null) }
@@ -245,6 +249,45 @@ fun SlateApp(viewModel: SlateViewModel) {
                 selectedId = viewModel.importDocument(imported).id
                 if (imported.warnings.isNotEmpty()) Toast.makeText(context, imported.warnings.joinToString(" "), Toast.LENGTH_LONG).show()
             }.onFailure { Toast.makeText(context, it.message ?: "Import failed", Toast.LENGTH_LONG).show() }
+        }
+    }
+    val forgeImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) scope.launch {
+            forgeImportBusy = true
+            forgeImportResults = emptyList()
+            try {
+                uris.distinct().forEachIndexed { index, uri ->
+                    forgeImportProgress = "Importing ${index + 1} of ${uris.distinct().size}"
+                    var name = "Selected document ${index + 1}"
+                    val result = try {
+                        val imported = withContext(Dispatchers.IO) {
+                            name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                                if (cursor.moveToFirst()) cursor.getString(0) else name
+                            } ?: name
+                            val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
+                                com.iiankehn.slate.io.readBoundedInput(input, DocumentFormats.MAX_DOCUMENT_BYTES)
+                            } ?: error("Unable to read this file.")
+                            require(bytes.size <= DocumentFormats.MAX_DOCUMENT_BYTES) { "File exceeds the 25 MB import limit." }
+                            val decoded = when (name.substringAfterLast('.', "").lowercase()) {
+                                "slxf" -> DocumentFormats.importSlxf(bytes)
+                                "slx" -> DocumentFormats.importSlx(bytes)
+                                else -> error("Choose a .slxf or .slx export from Forge.")
+                            }
+                            materializeImportedImages(context, decoded)
+                        }
+                        viewModel.importDocumentAndSave(imported)
+                        "$name — Imported" + imported.warnings.takeIf { it.isNotEmpty() }?.joinToString(" ", prefix = ". ").orEmpty()
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        throw cancelled
+                    } catch (failure: Exception) {
+                        "$name — ${failure.message ?: "Import failed"}"
+                    }
+                    forgeImportResults = forgeImportResults + result
+                }
+            } finally {
+                forgeImportBusy = false
+                forgeImportProgress = ""
+            }
         }
     }
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -469,6 +512,7 @@ fun SlateApp(viewModel: SlateViewModel) {
                 onImport = { importLauncher.launch(arrayOf("*/*")) },
                 onBackup = { showCreateBackup = true },
                 onRestoreBackup = { backupOpenLauncher.launch(arrayOf("*/*")) },
+                onMigrate = { showForgeImport = true },
                 onOpen = { selectedId = it.id },
                 onDuplicate = { viewModel.duplicateDocument(it) },
                 onPin = { viewModel.togglePin(it) },
@@ -510,6 +554,13 @@ fun SlateApp(viewModel: SlateViewModel) {
             )
         }
     }
+    if (showForgeImport) ForgeImportDialog(
+        busy = forgeImportBusy,
+        progress = forgeImportProgress,
+        results = forgeImportResults,
+        onChoose = { forgeImportLauncher.launch(arrayOf("*/*")) },
+        onDismiss = { if (!forgeImportBusy) showForgeImport = false },
+    )
     if (showCreateBackup) {
         AlertDialog(
             onDismissRequest = { if (!backupBusy) showCreateBackup = false },
@@ -699,6 +750,7 @@ private fun StartCenter(
     onImport: () -> Unit,
     onBackup: () -> Unit,
     onRestoreBackup: () -> Unit,
+    onMigrate: () -> Unit,
     onOpen: (Document) -> Unit,
     onDuplicate: (Document) -> Unit,
     onPin: (Document) -> Unit,
@@ -769,6 +821,7 @@ private fun StartCenter(
                     Box {
                         TextButton(onClick = { libraryMenuExpanded = true }) { Text("Library") }
                         DropdownMenu(expanded = libraryMenuExpanded, onDismissRequest = { libraryMenuExpanded = false }) {
+                            DropdownMenuItem(text = { Text("Import from former Forge app") }, onClick = { libraryMenuExpanded = false; onMigrate() })
                             DropdownMenuItem(text = { Text("Encrypted backup") }, onClick = { libraryMenuExpanded = false; onBackup() })
                             DropdownMenuItem(text = { Text("Restore backup") }, onClick = { libraryMenuExpanded = false; onRestoreBackup() })
                         }
