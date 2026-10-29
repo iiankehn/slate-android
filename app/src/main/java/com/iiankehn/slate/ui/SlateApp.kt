@@ -236,7 +236,12 @@ fun SlateApp(viewModel: SlateViewModel) {
                     val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
                         if (cursor.moveToFirst()) cursor.getString(0) else "Imported document"
                     } ?: "Imported document"
-                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    val fileLimit = when (name.substringAfterLast('.', "").lowercase()) {
+                        "slxf" -> 64 * 1024 * 1024
+                        "slx" -> 32 * 1024 * 1024
+                        else -> DocumentFormats.MAX_DOCUMENT_BYTES
+                    }
+                    val bytes = context.contentResolver.openInputStream(uri)?.use { com.iiankehn.slate.io.readBoundedInput(it, fileLimit) }
                         ?: error("Unable to read the selected document.")
                     val title = name.substringBeforeLast('.').ifBlank { "Imported document" }
                     val imported = when (name.substringAfterLast('.', "").lowercase()) {
@@ -367,7 +372,7 @@ fun SlateApp(viewModel: SlateViewModel) {
             runCatching {
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openInputStream(uri)?.use { input ->
-                        input.readBytes().also { require(it.size <= 512 * 1024 * 1024) { "The backup exceeds the 512 MB limit." } }
+                        com.iiankehn.slate.io.readBoundedInput(input, 512 * 1024 * 1024 + 1024)
                     } ?: error("Unable to read the backup file.")
                 }
             }.onSuccess { bytes ->

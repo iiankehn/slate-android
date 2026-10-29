@@ -27,6 +27,7 @@ data class DocxEmbeddedImage(
 
 object DocumentFormats {
     const val MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
+    private const val MAX_DOCX_EXPANDED_BYTES = 64 * 1024 * 1024
     private const val MAX_DOCX_ENTRIES = 2_000
     private const val MAX_XML_BYTES = 20 * 1024 * 1024
 
@@ -139,19 +140,27 @@ object DocumentFormats {
         val marginParts = mutableMapOf<String, ByteArray>()
         val mediaParts = mutableMapOf<String, ByteArray>()
         var entries = 0
+        var expandedBytes = 0
+        val seenNames = mutableSetOf<String>()
         ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
                 entries += 1
                 require(entries <= MAX_DOCX_ENTRIES) { "DOCX contains too many entries." }
-                if (entry.name == "word/document.xml") {
-                    documentXml = zip.readLimited(MAX_XML_BYTES)
-                } else if (entry.name == "word/_rels/document.xml.rels") {
-                    relationshipsXml = zip.readLimited(MAX_XML_BYTES)
-                } else if (entry.name.matches(Regex("word/(header|footer)\\d+\\.xml"))) {
-                    marginParts[entry.name] = zip.readLimited(MAX_XML_BYTES)
-                } else if (entry.name.startsWith("word/media/") && !entry.isDirectory) {
-                    mediaParts[entry.name] = zip.readLimited(MAX_DOCUMENT_BYTES)
+                require(entry.name.isNotBlank() && !entry.name.startsWith('/') && !entry.name.contains('\\') && entry.name.split('/').none { it == ".." }) { "DOCX contains an unsafe entry path." }
+                require(seenNames.add(entry.name)) { "DOCX contains duplicate entries." }
+                val isDocument = entry.name == "word/document.xml"
+                val isRelationships = entry.name == "word/_rels/document.xml.rels"
+                val isMargin = entry.name.matches(Regex("word/(header|footer)\\d+\\.xml"))
+                val entryLimit = if (isDocument || isRelationships || isMargin) MAX_XML_BYTES else MAX_DOCUMENT_BYTES
+                // Bound unknown parts too: nextEntry otherwise drains them without a limit.
+                val payload = readBoundedInput(zip, minOf(entryLimit, MAX_DOCX_EXPANDED_BYTES - expandedBytes))
+                expandedBytes += payload.size
+                if (!entry.isDirectory) when {
+                    isDocument -> documentXml = payload
+                    isRelationships -> relationshipsXml = payload
+                    isMargin -> marginParts[entry.name] = payload
+                    entry.name.startsWith("word/media/") -> mediaParts[entry.name] = payload
                 }
             }
         }
