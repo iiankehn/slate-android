@@ -2,15 +2,11 @@
 
 ## Start writing
 
-Select **New document** from the branded start panel, choose a quieter template card, or select **Open** to import an existing file. Search and library filters appear once you have documents to organize. Slate opens new files adaptively, so there is no required Note/Forge choice.
+Select **New document** from the branded start panel, choose a quieter template card, or select **Open** to import an existing file. Search and library filters appear once you have documents to organize. New documents open directly in the word-processing workspace.
 
-The library badge shows **Note** while the file uses note-compatible content. If you add page setup, sections, headers, footers, structured tables, or page breaks, Slate preserves it as **Forge**. A long note remains a note.
+October 2026 is the final release with the Notes experience. Subsequent development builds open both new documents and existing notes in the paged word-processing workspace. Your existing files remain readable; there is no need to convert or delete them to continue writing. The older Notes canvas and classification remain preserved in source.
 
 ## Use the workspace
-
-Note documents use a continuous writing canvas with formatting and lists, without page borders, a ruler, page thumbnails, or the page inspector. Word count and local-save status remain available. Adding page layout, a table, a header/footer, or a section promotes the document to the paged Forge workspace. Notes with images use the same continuous view, with image controls above the text. Image descriptions and table-cell text are edited through their own controls rather than through the main text field. Selecting or replacing paragraph text preserves embedded objects; use an image or table’s Delete action to remove it. Export and print continue to use the document's stored page settings.
-
-The Insert and Layout ribbon tabs explain which actions switch a Note to Forge’s paged view. The hint can be dismissed for the open document and disappears once the document uses Forge. Merely opening a tab does not change the document.
 
 The Forge-derived ribbon groups editing and document actions. On phones it starts as a compact dock with bold, italic, and underline controls; select **More** to reveal every ribbon tab and **Collapse** to return to the dock. Slate remembers that choice. The dock remains above the software keyboard. Tablets and larger windows keep the expanded ribbon and expose more controls at once.
 

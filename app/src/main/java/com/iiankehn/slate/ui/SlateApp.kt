@@ -167,7 +167,7 @@ private enum class RibbonTab { File, Home, Insert, Layout, Review, View }
 private enum class LayoutAction { Margins, Orientation, Size, Columns }
 private enum class ExportFormat(val label: String, val extension: String, val mime: String) {
     Slxf("Slate document (.slxf)", "slxf", SlxfCodec.MIME_TYPE),
-    Slx("Slate note (.slx)", "slx", SlxCodec.MIME_TYPE),
+    Slx("Legacy Slate (.slx)", "slx", SlxCodec.MIME_TYPE),
     Text("Text", "txt", "text/plain"),
     Markdown("Markdown", "md", "text/markdown"),
     Docx("DOCX", "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
@@ -944,9 +944,9 @@ private fun StartHero(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp)) {
-                Text("Make space for the idea.", style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium)
+                Text("Start your next document.", style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium)
                 Text(
-                    "Start with a note. Build it into a polished document when you need more.",
+                    "Write, format and refine your documents.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
                     maxLines = if (compact) 2 else 3,
@@ -1008,7 +1008,7 @@ private fun RecentDocument(
     ) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(12.dp)) {
-                Text(if (DocumentExperiencePolicy.effective(document) == DocumentExperience.Forge) "FORGE" else "NOTE", modifier = Modifier.padding(horizontal = 11.dp, vertical = 14.dp), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text("DOC", modifier = Modifier.padding(horizontal = 11.dp, vertical = 14.dp), fontWeight = FontWeight.Bold, fontSize = 11.sp)
             }
             Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
                 Text(DocumentTitlePolicy.displayTitle(document.title, document.body.text), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -1315,7 +1315,6 @@ private fun DocumentTitleBar(document: Document, saving: Boolean, compact: Boole
                 },
             )
             Text(if (saving) "Saving…" else "Saved", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (!compact) Text(if (DocumentExperiencePolicy.effective(document) == DocumentExperience.Forge) "Forge" else "Note", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 10.dp))
         }
     }
 }

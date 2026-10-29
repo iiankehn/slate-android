@@ -64,6 +64,7 @@ class SlateViewModel(
             title = "",
             body = RichTextDocument(),
             updatedLabel = "Just now",
+            experience = DocumentExperience.Forge,
         ).withSynchronizedR2()
         updateLocal(document)
         scheduleSave(document, delayMillis = 0)

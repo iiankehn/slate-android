@@ -1,8 +1,8 @@
 # Slate roadmap
 
-This roadmap describes the unified product after the Notes and Forge codebases were consolidated in October 2022. It is ordered by product risk and user value, not by separate R1/R2 tracks.
+October 2026 is the final release with Notes. Future work focuses on one Android word processor. Notes code and existing-file access are preserved; the published October release is unchanged.
 
-## Delivered foundation
+## Retained foundation (including historical Notes work)
 
 - One package, database, library, application, and monthly release line
 - Forge-derived interface for both Note and Forge documents
@@ -23,11 +23,15 @@ This roadmap describes the unified product after the Notes and Forge codebases w
 
 ## Next priorities
 
-1. Complete TalkBack labeling, focus order, large text, contrast, keyboard navigation, and touch-target audits.
-2. Benchmark large documents, image-heavy packages, pagination, startup, autosave, and low-memory recovery.
-3. Expand migration, corrupt-package, fuzz, round-trip, and updater security tests.
-4. Add optional protected documents and encrypted exports without weakening local-first behavior.
-5. Explore templates, backlinks, attachments, quick capture, and reminders after the core is stable.
+1. Complete word-processing accessibility, keyboard navigation, large-text and touch-target verification.
+2. Close DOCX round-trip gaps and evaluate a common editable default before changing formats.
+3. Benchmark large documents, image-heavy packages, pagination, startup, autosave and recovery.
+4. Expand corrupt-package, migration, round-trip and updater security coverage.
+5. Refine document templates, formatting, page layout, tables, images, printing and exports.
+
+## Preserved, not developed further
+
+Notes-specific canvas and classification code remain in the repository with tests. The Notes experience is disabled in subsequent development builds. A separate notes product or web app is deferred. Existing notes remain accessible in the paged workspace.
 
 ## Release gate
 

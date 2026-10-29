@@ -1,41 +1,30 @@
 # Product definition
 
-Slate is one adaptive Android writing product. It replaces the former plan for separate Slate Notes and Slate Forge applications with a shared library, editor, document model, formats, and release line.
+Slate is a private, local-first Android word processor. October 2026 is the final release to offer the Notes experience. Subsequent development and releases focus on one paged word-processing workspace for letters, reports, manuscripts and other formatted documents.
 
-## Product promise
+## Preserve existing work
 
-Open Slate and begin writing immediately. The workspace stays suitable for a note until the document actually uses page-layout structure, then preserves the complete Forge model without asking the user to choose an app first.
+The Notes renderer, adaptive classification, import/export code and tests remain in this repository. `NOTES_EXPERIENCE_ENABLED` in `CanvasPresentation.kt` disables that experience in subsequent development builds; it does not delete source or migrate stored documents. New documents use Forge. Previously created notes open in the word-processing workspace with their content retained.
 
-## Experiences
+Published October release tags and artifacts remain historical releases. This direction does not retroactively change them.
 
-| Experience | Intended work | Selection rule |
-| --- | --- | --- |
-| Note | Quick notes, lists, journals, research, and ordinary rich text | Default for adaptive documents without advanced structure |
-| Forge | Letters, reports, manuscripts, and page-structured documents | Explicitly selected or required by advanced structure |
+## Product priorities
 
-Advanced structure means multiple sections, non-default page setup, headers or footers, non-continuous section starts, structured tables, or forced page breaks. Length and word count are deliberately excluded.
+- Reliable text editing, formatting, lists, tables and images
+- Page setup, sections, headers/footers, pagination, print and PDF export
+- Document compatibility and explicit handling of unsupported features
+- Responsive phone, tablet and larger Android-window layouts
+- Local autosave, recovery, version history, library organization and encrypted backup
+- Accessible touch, keyboard and mouse interaction
 
-Promotion to Forge is sticky. Slate will not silently downgrade a file and risk discarding layout information.
+## Formats
 
-## Shared foundation
+Existing `.slx` and `.slxf` support is retained. A common editable format, particularly DOCX, is under consideration. No change to the default portable format has been approved or implemented. See [compatibility assessment](FORMAT_COMPATIBILITY.md) for current converter gaps and migration gates.
 
-- one Android application and package: `com.iiankehn.slate`;
-- one library and Room database;
-- one Forge-derived responsive interface;
-- one adaptive document policy;
-- `.slx` for portable rich notes and `.slxf` for full-fidelity documents;
-- one monthly release line using calendar and commit-derived versions;
-- ARM64 and x86_64 compatibility;
-- local-only storage unless the user explicitly imports, exports, shares, prints, or checks for updates.
+## Foundation
 
-## Supported form factors
+One Android package (`com.iiankehn.slate`), one Room database, one library and one monthly release line. Android 12+, ARM64 and x86_64 remain supported targets. The app requires no account and has no telemetry, background update polling or required cloud service.
 
-Slate targets Android 12+ phones, tablets, large and resizable Android windows, Googlebook Android environments, keyboard/mouse workflows, and both portrait and landscape use.
+## Deferred
 
-## Non-goals
-
-- Recreating two independently installed products
-- Choosing Forge merely because a document is long
-- Requiring an account or proprietary cloud service
-- Advertising exact Microsoft Word layout parity
-- Automatic background update checks
+Notes-specific development stops after October. A possible future notes product or web app is separate exploratory work, with no implementation commitment. Quick capture, backlinks and reminders are outside the current word-processor roadmap.

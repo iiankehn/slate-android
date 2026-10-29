@@ -1,6 +1,8 @@
 # Slate by CORE
 
-Slate is a private, local-first Android writing app that adapts from quick notes to complete word-processing documents. One installation combines the focused Slate Notes workflow with Slate Forge's ribbon workspace, page-layout engine, and large-screen support.
+Slate is a private, local-first Android word processor for formatted documents, page layout and printing.
+
+**Development direction:** October 2026 is the final release with the Notes experience. Subsequent builds use one paged word-processing workspace. Notes source code and file compatibility are retained, and existing notes remain accessible as documents. The latest published October APK may still include Notes.
 
 ## Get Slate
 
@@ -11,16 +13,9 @@ Slate is a private, local-first Android writing app that adapts from quick notes
 
 Slate requires no account and includes no ads, analytics, telemetry, cloud sync, or background update polling.
 
-## One adaptive workspace
+## One word-processing workspace
 
-Every new file starts in **Adaptive** mode:
-
-- ordinary text and rich formatting stay a lightweight **Note**;
-- page setup, sections, headers, footers, structured tables, or forced page breaks promote it to **Forge**;
-- document length alone never changes its type;
-- once a document requires Forge features, it remains Forge so its layout cannot be lost.
-
-The same Forge-derived interface is used for both experiences. The library labels each document as Note or Forge, while search, favorites, folders, tags, archive, trash, and recovery remain unified.
+New documents use Forge’s page-layout workspace. Existing documents and notes share the same library, editor, autosave and recovery tools. Note/Forge classification remains available internally for compatibility, without requiring users to choose between two experiences.
 
 ## Highlights
 
@@ -43,7 +38,7 @@ The same Forge-derived interface is used for both experiences. The library label
 | `.slxf` | Lossless Slate document for complete Forge page and layout features |
 | `.slatebackup` | Authenticated, password-encrypted whole-library backup |
 
-Slate chooses the appropriate experience from document structure when importing. Exporting to `.slx` can simplify Forge-only layout, but never changes the original `.slxf` document.
+All imported documents open in the word-processing workspace. Exporting to `.slx` can simplify Forge-only layout, but never changes the original `.slxf` document.
 
 ## Upgrading and migration
 
@@ -83,7 +78,7 @@ Security-sensitive reports should follow [SECURITY.md](SECURITY.md).
 
 - Local-first by default
 - One coherent app, not parallel product forks
-- Notes remain fast; advanced layout appears when needed
-- Open interchange at the edges, lossless Slate format at the center
+- Word processing is the product focus after October 2026
+- Preserve existing files while evaluating a common editable format
 - No silent network activity
 - Accessible across phone, tablet, keyboard, mouse, and touch

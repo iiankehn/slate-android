@@ -21,12 +21,24 @@ class CanvasPresentationTest {
     private fun document(word: WordProcessingDocument, experience: DocumentExperience = DocumentExperience.Adaptive) =
         Document("doc", "Draft", RichTextDocument(), "Now", wordProcessingDocument = word, experience = experience)
 
+    @Test fun developmentBuildsUsePagesForEveryLegacyExperienceWithoutChangingContent() {
+        val word = WordProcessingDocument("doc", "Draft", sections = listOf(DocumentSection(
+            blocks = listOf(ParagraphBlock(runs = listOf(TextRun("Existing writing")))),
+        )))
+        DocumentExperience.entries.forEach { experience ->
+            val existing = document(word, experience)
+            assertFalse(usesContinuousCanvas(existing))
+            assertEquals(experience, existing.experience)
+            assertEquals(word, existing.wordProcessingDocument)
+        }
+    }
+
     @Test fun longNotesStayContinuousWithoutPaginationPromotion() {
         val word = WordProcessingDocument("doc", "Draft", sections = listOf(DocumentSection(
             blocks = listOf(ParagraphBlock(runs = listOf(TextRun("Long note\n".repeat(1000))))),
         )))
-        assertTrue(usesContinuousCanvas(document(word)))
-        assertFalse(usesContinuousCanvas(document(word, DocumentExperience.Forge)))
+        assertTrue(usesContinuousCanvas(document(word), notesEnabled = true))
+        assertFalse(usesContinuousCanvas(document(word, DocumentExperience.Forge), notesEnabled = true))
     }
 
     @Test fun pageLayoutSwitchKeepsTextAndStickyForgeChoice() {
@@ -34,14 +46,14 @@ class CanvasPresentationTest {
             blocks = listOf(ParagraphBlock(runs = listOf(TextRun("Preserve this note")))),
         )))
         val editor = FlatTextEditorAdapter(word)
-        assertTrue(usesContinuousCanvas(document(editor.document)))
+        assertTrue(usesContinuousCanvas(document(editor.document), notesEnabled = true))
         editor.updatePageSetup(PageSetup(orientation = PageOrientation.Landscape))
         val experience = DocumentExperiencePolicy.resolve(DocumentExperience.Adaptive, editor.document)
-        assertFalse(usesContinuousCanvas(document(editor.document, experience)))
+        assertFalse(usesContinuousCanvas(document(editor.document, experience), notesEnabled = true))
         assertEquals("Preserve this note", editor.state().text)
         editor.undo()
         assertEquals("Preserve this note", editor.state().text)
-        assertFalse(usesContinuousCanvas(document(editor.document, experience)))
+        assertFalse(usesContinuousCanvas(document(editor.document, experience), notesEnabled = true))
     }
 
     @Test fun imageNotesUseContinuousCanvas() {
@@ -49,6 +61,6 @@ class CanvasPresentationTest {
             blocks = listOf(ParagraphBlock(), ImageBlock(id = "image-1", sourceUri = "file:///image.png")),
         )))
         assertEquals(DocumentExperience.Notes, DocumentExperiencePolicy.effective(document(word)))
-        assertTrue(usesContinuousCanvas(document(word)))
+        assertTrue(usesContinuousCanvas(document(word), notesEnabled = true))
     }
 }

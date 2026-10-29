@@ -4,8 +4,8 @@
 
 | Capability | Behavior |
 | --- | --- |
-| Adaptive creation | Starts without forcing a Note/Forge decision |
-| Classification | Labels content Note or Forge from persisted structure |
+| Creation | New documents use the Forge word-processing workspace |
+| Legacy compatibility | Existing notes open as documents; classification and renderer code are retained |
 | Search | Matches title, body, folder, and tags |
 | Organization | Pin, favorite, folder, tags, archive, trash, restore, and duplicate |
 | Recovery | Autosave plus up to 30 local checkpoints per document |
@@ -24,9 +24,9 @@
 - Forge structure: sections, page setup, headers, footers, page breaks, and paginated layout
 - Input: touch, software keyboard, hardware keyboard, and mouse-friendly controls
 
-## Adaptive rules
+## Product direction
 
-Ordinary text, rich formatting, links, and simple content remain Note-compatible. Multiple sections, custom page setup, headers or footers, non-continuous section starts, structured tables, and forced page breaks require Forge. Length alone never triggers Forge, and Forge documents are not silently downgraded.
+October 2026 is the final Notes release. Subsequent builds use a paged workspace for all documents. Notes-specific code and format support are preserved, with no conversion of existing stored data required.
 
 ## Interchange
 
@@ -55,5 +55,3 @@ Ordinary text, rich formatting, links, and simple content remain Note-compatible
 
 - DOCX is an interchange format, not a claim of Microsoft Word layout parity.
 - Exporting a Forge document to `.slx` may simplify page-only features; the source remains unchanged.
-- The start center does not yet expose every folder, tag, saved-search, and history control supported by the data layer.
-- Guided migration from the former standalone Forge app remains a roadmap item.

@@ -1,5 +1,7 @@
 # Architecture
 
+Product direction: October 2026 is the final Notes release. Subsequent builds use the paged word-processing workspace for all documents. The adaptive policy and continuous Notes renderer described below remain retained compatibility code, gated off by `NOTES_EXPERIENCE_ENABLED`. Stored experiences and existing file contents are not rewritten.
+
 Slate is a single-activity Kotlin and Jetpack Compose application. It uses unidirectional data flow: Compose renders state from `SlateViewModel`, actions update that state, and `DocumentRepository` persists normalized documents through Room.
 
 ## Runtime layers
