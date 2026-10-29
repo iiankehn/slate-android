@@ -15,6 +15,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
@@ -1297,8 +1301,13 @@ private fun DocumentTitleBar(document: Document, saving: Boolean, compact: Boole
                 singleLine = true,
                 textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onSurface),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                modifier = Modifier.weight(1f).padding(horizontal = if (compact) 8.dp else 14.dp),
-                decorationBox = { inner -> if (document.title.isBlank()) Text("Untitled document", color = MaterialTheme.colorScheme.onSurfaceVariant) else inner() },
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp).padding(horizontal = if (compact) 8.dp else 14.dp).semantics { contentDescription = "Document title" },
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (document.title.isBlank()) Text("Untitled document", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        inner()
+                    }
+                },
             )
             Text(if (saving) "Saving…" else "Saved", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (!compact) Text(if (DocumentExperiencePolicy.effective(document) == DocumentExperience.Forge) "Forge" else "Note", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 10.dp))
@@ -1313,7 +1322,7 @@ private fun RibbonTabs(active: RibbonTab, onSelect: (RibbonTab) -> Unit, dense: 
             Row(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
                 RibbonTab.entries.forEach { tab ->
                     val selected = tab == active
-                    Column(Modifier.clickable { onSelect(tab) }.padding(horizontal = if (dense) 14.dp else 18.dp, vertical = if (dense) 4.dp else 9.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(Modifier.selectable(selected = selected, role = Role.Tab, onClick = { onSelect(tab) }).heightIn(min = 48.dp).padding(horizontal = if (dense) 14.dp else 18.dp, vertical = if (dense) 4.dp else 9.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(tab.name, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                         if (selected) Spacer(Modifier.padding(top = 4.dp).width(28.dp).height(3.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(3.dp)))
                     }
@@ -1337,15 +1346,15 @@ private fun CompactRibbonDock(
 ) {
     Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
         Row(
-            Modifier.fillMaxWidth().height(if (dense) 46.dp else 52.dp).padding(horizontal = 6.dp, vertical = if (dense) 2.dp else 4.dp),
+            Modifier.fillMaxWidth().heightIn(min = if (dense) 52.dp else 56.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = if (dense) 2.dp else 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             if (!dense) Text("Format", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 6.dp))
-            RibbonCommand("B", { onToggle(RichTextStyle.Bold) }, document.body.hasStyle(RichTextStyle.Bold, selection.min, selection.max), FontWeight.Black)
-            RibbonCommand("I", { onToggle(RichTextStyle.Italic) }, document.body.hasStyle(RichTextStyle.Italic, selection.min, selection.max), italic = true)
-            RibbonCommand("U", { onToggle(RichTextStyle.Underline) }, document.body.hasStyle(RichTextStyle.Underline, selection.min, selection.max), underline = true)
-            Spacer(Modifier.weight(1f))
+            RibbonCommand("B", { onToggle(RichTextStyle.Bold) }, (document.wordProcessingDocument?.let(R2DocumentBridge::toEditableBody) ?: document.body).hasStyle(RichTextStyle.Bold, selection.min, selection.max), FontWeight.Black)
+            RibbonCommand("I", { onToggle(RichTextStyle.Italic) }, (document.wordProcessingDocument?.let(R2DocumentBridge::toEditableBody) ?: document.body).hasStyle(RichTextStyle.Italic, selection.min, selection.max), italic = true)
+            RibbonCommand("U", { onToggle(RichTextStyle.Underline) }, (document.wordProcessingDocument?.let(R2DocumentBridge::toEditableBody) ?: document.body).hasStyle(RichTextStyle.Underline, selection.min, selection.max), underline = true)
+            Spacer(Modifier.width(8.dp))
             TextButton(
                 onClick = onExpand,
                 modifier = Modifier.semantics { contentDescription = "Expand formatting ribbon" },
@@ -1387,7 +1396,7 @@ private fun Ribbon(
     onZoom: (Int) -> Unit,
 ) {
     Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
-        Row(Modifier.fillMaxWidth().height(if (dense) 66.dp else if (compact) 70.dp else 88.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = if (dense) 3.dp else 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = if (dense) 66.dp else if (compact) 70.dp else 88.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = if (dense) 3.dp else 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             when (tab) {
                 RibbonTab.File -> {
                     RibbonGroup("Document") { RibbonCommand("New", onNew); RibbonCommand("Open", onOpen) }
@@ -1397,9 +1406,9 @@ private fun Ribbon(
                 }
                 RibbonTab.Home -> {
                     RibbonGroup("Font") {
-                        RibbonCommand("B", { onToggle(RichTextStyle.Bold) }, document.body.hasStyle(RichTextStyle.Bold, selection.min, selection.max), FontWeight.Black)
-                        RibbonCommand("I", { onToggle(RichTextStyle.Italic) }, document.body.hasStyle(RichTextStyle.Italic, selection.min, selection.max), italic = true)
-                        RibbonCommand("U", { onToggle(RichTextStyle.Underline) }, document.body.hasStyle(RichTextStyle.Underline, selection.min, selection.max), underline = true)
+                        RibbonCommand("B", { onToggle(RichTextStyle.Bold) }, (document.wordProcessingDocument?.let(R2DocumentBridge::toEditableBody) ?: document.body).hasStyle(RichTextStyle.Bold, selection.min, selection.max), FontWeight.Black)
+                        RibbonCommand("I", { onToggle(RichTextStyle.Italic) }, (document.wordProcessingDocument?.let(R2DocumentBridge::toEditableBody) ?: document.body).hasStyle(RichTextStyle.Italic, selection.min, selection.max), italic = true)
+                        RibbonCommand("U", { onToggle(RichTextStyle.Underline) }, (document.wordProcessingDocument?.let(R2DocumentBridge::toEditableBody) ?: document.body).hasStyle(RichTextStyle.Underline, selection.min, selection.max), underline = true)
                     }
                     RibbonGroup("Paragraph") {
                         RibbonCommand("Bullets", { onToggleList(ListKind.Bulleted) })
@@ -1436,12 +1445,15 @@ private fun RibbonGroup(label: String, content: @Composable RowScope.() -> Unit)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), content = content)
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 5.dp))
     }
-    Box(Modifier.fillMaxHeight().width(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
+    Box(Modifier.height(36.dp).width(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
 }
 
 @Composable
-private fun RibbonCommand(label: String, onClick: () -> Unit, active: Boolean = false, weight: FontWeight = FontWeight.Medium, italic: Boolean = false, underline: Boolean = false) {
-    Surface(Modifier.clickable(onClick = onClick), color = if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, shape = RoundedCornerShape(10.dp)) {
+private fun RibbonCommand(label: String, onClick: () -> Unit, active: Boolean? = null, weight: FontWeight = FontWeight.Medium, italic: Boolean = false, underline: Boolean = false) {
+    val spokenLabel = when (label) { "B" -> "Bold"; "I" -> "Italic"; "U" -> "Underline"; else -> label }
+    val interaction = if (active == null) Modifier.clickable(role = Role.Button, onClick = onClick)
+        else Modifier.toggleable(value = active, role = Role.Checkbox, onValueChange = { onClick() })
+    Surface(Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).then(interaction).semantics { contentDescription = spokenLabel }, color = if (active == true) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, shape = RoundedCornerShape(10.dp)) {
         Text(label, fontWeight = weight, fontStyle = if (italic) FontStyle.Italic else FontStyle.Normal, textDecoration = if (underline) TextDecoration.Underline else null, modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), maxLines = 1)
     }
 }
@@ -2267,9 +2279,9 @@ private fun StatusBar(document: Document, saving: Boolean, zoom: Int, activePage
             Text(if (saving) "Saving…" else "Saved locally", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("  •  ${pageLabel}$words words${if (compact) "" else "  •  ${document.body.text.length} characters"}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (!compact) {
-                TextButton(onClick = { onZoom((zoom - 25).coerceAtLeast(50)) }) { Text("−") }
+                TextButton(onClick = { onZoom((zoom - 25).coerceAtLeast(50)) }, modifier = Modifier.semantics { contentDescription = "Zoom out" }) { Text("−") }
                 Text("$zoom%", style = MaterialTheme.typography.labelMedium)
-                TextButton(onClick = { onZoom((zoom + 25).coerceAtMost(175)) }) { Text("+") }
+                TextButton(onClick = { onZoom((zoom + 25).coerceAtMost(175)) }, modifier = Modifier.semantics { contentDescription = "Zoom in" }) { Text("+") }
             }
         }
     }
