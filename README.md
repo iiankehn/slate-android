@@ -1,8 +1,6 @@
-# Slate by CORE
+# Slate for Android (deprecated)
 
-Slate is a private, local-first Android word processor for formatted documents, page layout and printing.
-
-**Development direction:** October 2026 is the final release with the Notes experience. Subsequent builds use one paged word-processing workspace. Notes source code and file compatibility are retained, and existing notes remain accessible as documents. The latest published October APK may still include Notes.
+Slate for Android is deprecated. This repository preserves its source, documentation, and historical releases. Active development has moved to [Slate Forge, the browser word processor](https://slate-web.iiankehn.com/). The Android documentation below describes the historical product.
 
 ## Get Slate
 
